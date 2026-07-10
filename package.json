@@ -10,7 +10,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "check:render-template": "node scripts/check-render-template.mjs"
   },
   "peerDependencies": {
     "payload": "^3.76.1"

@@ -8,12 +8,14 @@ export {
   buildRecipientPreview,
   loadRecipientPreview,
 } from "./utils/recipients.js";
+export { renderTemplate } from "./utils/renderTemplate.js";
 export type {
   RecipientPreviewCandidate,
   RecipientPreviewResult,
   RecipientPreviewSummary,
   RecipientPreviewType,
 } from "./utils/recipients.js";
+export type { RenderTemplateData } from "./utils/renderTemplate.js";
 
 export type EmailBroadcastRecipientFields = {
   email: string;
