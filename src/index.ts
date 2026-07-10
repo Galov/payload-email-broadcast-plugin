@@ -1,3 +1,9 @@
+import { emailBroadcastsCollection } from "./collections/EmailBroadcasts.js";
+import { emailLogsCollection } from "./collections/EmailLogs.js";
+import { emailTemplatesCollection } from "./collections/EmailTemplates.js";
+import { emailSettingsGlobal } from "./globals/EmailSettings.js";
+import type { PayloadConfigLike } from "./types.js";
+
 export type EmailBroadcastRecipientFields = {
   email: string;
   firstName?: string;
@@ -15,12 +21,23 @@ export type EmailBroadcastPluginOptions = {
   defaultReplyTo?: string;
 };
 
-export type EmailBroadcastPlugin = <TConfig>(config: TConfig) => TConfig;
+export type EmailBroadcastPlugin = <TConfig extends PayloadConfigLike>(
+  config: TConfig,
+) => TConfig;
 
 export const emailBroadcastPlugin = (
   _options: EmailBroadcastPluginOptions,
 ): EmailBroadcastPlugin => {
-  return <TConfig>(config: TConfig): TConfig => {
-    return config;
+  return <TConfig extends PayloadConfigLike>(config: TConfig): TConfig => {
+    return {
+      ...config,
+      collections: [
+        ...(config.collections ?? []),
+        emailBroadcastsCollection,
+        emailTemplatesCollection,
+        emailLogsCollection,
+      ],
+      globals: [...(config.globals ?? []), emailSettingsGlobal],
+    };
   };
 };
