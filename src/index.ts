@@ -2,7 +2,7 @@ import { emailBroadcastsCollection } from "./collections/EmailBroadcasts.js";
 import { emailLogsCollection } from "./collections/EmailLogs.js";
 import { emailTemplatesCollection } from "./collections/EmailTemplates.js";
 import { emailSettingsGlobal } from "./globals/EmailSettings.js";
-import type { PayloadConfigLike } from "./types.js";
+import type { Config, Plugin } from "payload";
 
 export type EmailBroadcastRecipientFields = {
   email: string;
@@ -21,14 +21,12 @@ export type EmailBroadcastPluginOptions = {
   defaultReplyTo?: string;
 };
 
-export type EmailBroadcastPlugin = <TConfig extends PayloadConfigLike>(
-  config: TConfig,
-) => TConfig;
+export type EmailBroadcastPlugin = Plugin;
 
 export const emailBroadcastPlugin = (
   _options: EmailBroadcastPluginOptions,
 ): EmailBroadcastPlugin => {
-  return <TConfig extends PayloadConfigLike>(config: TConfig): TConfig => {
+  return (config: Config): Config => {
     return {
       ...config,
       collections: [

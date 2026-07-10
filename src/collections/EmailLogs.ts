@@ -1,12 +1,13 @@
-import type { CollectionConfigLike } from "../types.js";
+import type { CollectionConfig } from "payload";
 
-export const emailLogsCollection: CollectionConfigLike = {
+export const emailLogsCollection: CollectionConfig = {
   slug: "email-logs",
   labels: {
     singular: "Email Log",
     plural: "Email Logs",
   },
   admin: {
+    group: "Broadcasts",
     description: "Per-recipient delivery records for broadcast activity.",
   },
   fields: [

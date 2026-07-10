@@ -12,6 +12,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
+  "peerDependencies": {
+    "payload": "^3.76.1"
+  },
   "keywords": [
     "payload",
     "payloadcms",
@@ -21,6 +24,7 @@
     "resend"
   ],
   "devDependencies": {
+    "payload": "^3.76.1",
     "typescript": "^5.9.2"
   }
 }

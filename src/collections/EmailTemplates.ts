@@ -1,6 +1,6 @@
-import type { CollectionConfigLike } from "../types.js";
+import type { CollectionConfig } from "payload";
 
-export const emailTemplatesCollection: CollectionConfigLike = {
+export const emailTemplatesCollection: CollectionConfig = {
   slug: "email-templates",
   labels: {
     singular: "Email Template",
@@ -8,6 +8,7 @@ export const emailTemplatesCollection: CollectionConfigLike = {
   },
   admin: {
     useAsTitle: "name",
+    group: "Broadcasts",
     description: "Reusable broadcast template skeletons.",
   },
   fields: [

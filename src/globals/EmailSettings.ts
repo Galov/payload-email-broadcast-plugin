@@ -1,9 +1,10 @@
-import type { GlobalConfigLike } from "../types.js";
+import type { GlobalConfig } from "payload";
 
-export const emailSettingsGlobal: GlobalConfigLike = {
+export const emailSettingsGlobal: GlobalConfig = {
   slug: "email-settings",
   label: "Email Settings",
   admin: {
+    group: "Broadcasts",
     description:
       "Admin-managed sender defaults and footer content. Secret credentials stay outside the database.",
   },
