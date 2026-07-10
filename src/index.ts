@@ -4,6 +4,17 @@ import { emailTemplatesCollection } from "./collections/EmailTemplates.js";
 import { emailSettingsGlobal } from "./globals/EmailSettings.js";
 import type { Config, Plugin } from "payload";
 
+export {
+  buildRecipientPreview,
+  loadRecipientPreview,
+} from "./utils/recipients.js";
+export type {
+  RecipientPreviewCandidate,
+  RecipientPreviewResult,
+  RecipientPreviewSummary,
+  RecipientPreviewType,
+} from "./utils/recipients.js";
+
 export type EmailBroadcastRecipientFields = {
   email: string;
   firstName?: string;
