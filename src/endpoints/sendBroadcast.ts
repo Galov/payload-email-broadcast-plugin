@@ -81,11 +81,11 @@ export const createSendBroadcastEndpoint = ({
         overrideAccess: true,
       })) as Record<string, unknown>;
 
-      if (broadcast.recipientMode !== "custom") {
+      if (broadcast.recipientMode !== "custom" && broadcast.recipientMode !== "groups") {
         return Response.json(
           {
             error:
-              "Първо запази кампанията с режим \"Ръчно избрани\". Реалното изпращане използва записаните данни от базата.",
+              "Първо запази кампанията с режим \"Ръчно избрани\" или \"Групи\". Реалното изпращане използва записаните данни от базата.",
           },
           { status: 400 },
         );
@@ -138,7 +138,7 @@ export const createSendBroadcastEndpoint = ({
       if (recipients.length > MAX_CONTROLLED_RECIPIENTS) {
         return Response.json(
           {
-            error: `Контролираното изпращане засега е ограничено до ${MAX_CONTROLLED_RECIPIENTS} получатели.`,
+            error: `Контролираното изпращане засега е ограничено до ${MAX_CONTROLLED_RECIPIENTS} получатели. Провери брояча "Крайни получатели" преди изпращане.`,
           },
           { status: 400 },
         );

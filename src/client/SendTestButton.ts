@@ -159,7 +159,7 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
       prompt?: (message?: string) => string | null;
     };
     const confirmation = browserWindow.prompt?.(
-      'Това ще изпрати реални имейли до ръчно избраните получатели. Напиши "ИЗПРАТИ", за да потвърдиш.',
+      'Това ще изпрати реални имейли до записаните получатели в кампанията. Засега са разрешени само режимите "Ръчно избрани" и "Групи". Напиши "ИЗПРАТИ", за да потвърдиш.',
     );
 
     if (confirmation !== "ИЗПРАТИ") {
@@ -223,7 +223,7 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
     React.createElement(
       "p",
       { style: { color: "#374151", fontSize: 14, lineHeight: 1.5, margin: 0 } },
-      "Запази кампанията преди реално изпращане. Реалният бутон засега работи само за ръчно избрани получатели.",
+      "Запази кампанията преди реално изпращане. Реалният бутон засега работи само за ръчно избрани получатели и групи.",
     ),
     message
       ? React.createElement(
