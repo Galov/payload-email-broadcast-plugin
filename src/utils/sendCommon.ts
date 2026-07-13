@@ -66,28 +66,51 @@ export const buildFromAddress = ({
   return fromName ? `${fromName} <${fromEmail}>` : fromEmail;
 };
 
+export const getRelationshipId = (value: unknown): number | string | null => {
+  if (typeof value === "string" || typeof value === "number") {
+    return value;
+  }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    "id" in value &&
+    (typeof value.id === "string" || typeof value.id === "number")
+  ) {
+    return value.id;
+  }
+
+  return null;
+};
+
+export const resolveBroadcastTemplate = async ({
+  broadcast,
+  payload,
+}: {
+  broadcast: Record<string, unknown>;
+  payload: Payload;
+}): Promise<Record<string, unknown> | null> => {
+  const templateId = getRelationshipId(broadcast.template);
+
+  if (!templateId) {
+    return null;
+  }
+
+  return (await payload.findByID({
+    collection: "email-templates",
+    id: templateId,
+    depth: 1,
+    overrideAccess: true,
+  })) as Record<string, unknown>;
+};
+
 const getCustomRecipientIds = (broadcast: Record<string, unknown>) => {
   const customRecipients = Array.isArray(broadcast.customRecipients)
     ? broadcast.customRecipients
     : [];
 
   return customRecipients
-    .map((value) => {
-      if (typeof value === "string" || typeof value === "number") {
-        return value;
-      }
-
-      if (
-        value &&
-        typeof value === "object" &&
-        "id" in value &&
-        (typeof value.id === "string" || typeof value.id === "number")
-      ) {
-        return value.id;
-      }
-
-      return null;
-    })
+    .map(getRelationshipId)
     .filter((value): value is number | string => value !== null);
 };
 

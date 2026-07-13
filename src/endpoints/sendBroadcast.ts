@@ -1,11 +1,14 @@
 import { canAccessAdmin, type Endpoint } from "payload";
-import { renderEmailBodyHTML } from "../utils/emailBody.js";
+import {
+  renderEmailBodyHTML,
+  renderEmailLayoutHTML,
+} from "../utils/emailBody.js";
 import { renderTemplate } from "../utils/renderTemplate.js";
 import {
   asNonEmptyString,
   buildAcceptedRecipients,
   buildFromAddress,
-  escapeHtml,
+  resolveBroadcastTemplate,
   resolveCandidateDocs,
   resolveRenderData,
   stripHtml,
@@ -155,6 +158,10 @@ export const createSendBroadcastEndpoint = ({
       const replyTo =
         asNonEmptyString(settings.defaultReplyTo) ?? defaultReplyTo ?? undefined;
       const footerText = asNonEmptyString(settings.footerText);
+      const template = await resolveBroadcastTemplate({
+        broadcast,
+        payload: req.payload,
+      });
       const sentAt = new Date().toISOString();
       let deliveredCount = 0;
       let failedCount = 0;
@@ -180,13 +187,14 @@ export const createSendBroadcastEndpoint = ({
           req,
           value: broadcast.body,
         });
-        const html = [
-          '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;">',
-          previewText ? `<p style="color:#666;">${escapeHtml(previewText)}</p>` : "",
+        const html = await renderEmailLayoutHTML({
           bodyHtml,
-          footerText ? `<hr /><p>${escapeHtml(footerText)}</p>` : "",
-          "</div>",
-        ].join("");
+          data: renderData,
+          previewText,
+          req,
+          settingsFooterText: footerText,
+          template,
+        });
         const text = [previewText, stripHtml(bodyHtml), footerText]
           .filter((value) => typeof value === "string" && value.trim().length > 0)
           .join("\n\n");

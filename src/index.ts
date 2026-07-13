@@ -12,6 +12,7 @@ export { renderTemplate } from "./utils/renderTemplate.js";
 export {
   normalizeEmailBodyValue,
   renderEmailBodyHTML,
+  renderEmailLayoutHTML,
 } from "./utils/emailBody.js";
 export type {
   RecipientPreviewCandidate,

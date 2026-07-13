@@ -6,9 +6,11 @@ import {
 } from "../utils/recipients.js";
 import {
   renderEmailBodyHTML,
+  renderEmailLayoutHTML,
 } from "../utils/emailBody.js";
 import { renderTemplate } from "../utils/renderTemplate.js";
 import { sendWithResend } from "../providers/resend.js";
+import { resolveBroadcastTemplate } from "../utils/sendCommon.js";
 
 type CreateSendTestEndpointArgs = {
   defaultFromEmail?: string;
@@ -339,15 +341,19 @@ export const createSendTestEndpoint = ({
         value: broadcast.body,
       });
       const footerText = asNonEmptyString(settings.footerText);
-
-      const html = [
-        '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;">',
-        '<p style="padding:12px 16px;border:1px solid #d0d7de;background:#f6f8fa;"><strong>Тестов имейл.</strong> Той е изпратен само до конфигурирания тестов адрес.</p>',
-        renderedPreviewText ? `<p style="color:#666;">${escapeHtml(renderedPreviewText)}</p>` : "",
-        renderedBody,
-        footerText ? `<hr /><p>${escapeHtml(footerText)}</p>` : "",
-        "</div>",
-      ].join("");
+      const template = await resolveBroadcastTemplate({
+        broadcast,
+        payload: req.payload,
+      });
+      const html = await renderEmailLayoutHTML({
+        bodyHtml: renderedBody,
+        data: renderData,
+        previewText: renderedPreviewText,
+        req,
+        settingsFooterText: footerText,
+        template,
+        testNotice: "Той е изпратен само до конфигурирания тестов адрес.",
+      });
 
       const text = [
         "Тестов имейл. Той е изпратен само до конфигурирания тестов адрес.",
