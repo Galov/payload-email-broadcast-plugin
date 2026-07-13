@@ -14,7 +14,10 @@
     "check:render-template": "node scripts/check-render-template.mjs"
   },
   "peerDependencies": {
-    "payload": "^3.76.1"
+    "@payloadcms/richtext-lexical": "^3.76.1",
+    "@payloadcms/ui": "^3.76.1",
+    "payload": "^3.76.1",
+    "react": "^19.0.0"
   },
   "keywords": [
     "payload",
@@ -25,7 +28,14 @@
     "resend"
   ],
   "devDependencies": {
+    "@payloadcms/richtext-lexical": "^3.76.1",
+    "@payloadcms/ui": "^3.76.1",
+    "@types/react": "^19.1.9",
     "payload": "^3.76.1",
+    "react": "^19.1.1",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "resend": "^6.17.2"
   }
 }

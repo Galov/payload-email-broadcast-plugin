@@ -1,6 +1,6 @@
-import { emailBroadcastsCollection } from "./collections/EmailBroadcasts.js";
+import { createEmailBroadcastsCollection } from "./collections/EmailBroadcasts.js";
 import { emailLogsCollection } from "./collections/EmailLogs.js";
-import { emailTemplatesCollection } from "./collections/EmailTemplates.js";
+import { createEmailTemplatesCollection } from "./collections/EmailTemplates.js";
 import { emailSettingsGlobal } from "./globals/EmailSettings.js";
 import type { Config, Plugin } from "payload";
 
@@ -9,6 +9,10 @@ export {
   loadRecipientPreview,
 } from "./utils/recipients.js";
 export { renderTemplate } from "./utils/renderTemplate.js";
+export {
+  normalizeEmailBodyValue,
+  renderEmailBodyHTML,
+} from "./utils/emailBody.js";
 export type {
   RecipientPreviewCandidate,
   RecipientPreviewResult,
@@ -28,6 +32,7 @@ export type EmailBroadcastPluginOptions = {
   recipientFields: EmailBroadcastRecipientFields;
   subscriptionField?: string;
   unsubscribeTokenField?: string;
+  mediaCollection?: string;
   resendApiKey: string;
   defaultFromEmail?: string;
   defaultFromName?: string;
@@ -37,15 +42,26 @@ export type EmailBroadcastPluginOptions = {
 export type EmailBroadcastPlugin = Plugin;
 
 export const emailBroadcastPlugin = (
-  _options: EmailBroadcastPluginOptions,
+  options: EmailBroadcastPluginOptions,
 ): EmailBroadcastPlugin => {
   return (config: Config): Config => {
     return {
       ...config,
       collections: [
         ...(config.collections ?? []),
-        emailBroadcastsCollection,
-        emailTemplatesCollection,
+        createEmailBroadcastsCollection({
+          defaultFromEmail: options.defaultFromEmail,
+          defaultFromName: options.defaultFromName,
+          defaultReplyTo: options.defaultReplyTo,
+          mediaCollection: options.mediaCollection,
+          recipientsCollection: options.usersCollection,
+          recipientEmailField: options.recipientFields.email,
+          recipientFirstNameField: options.recipientFields.firstName,
+          recipientLastNameField: options.recipientFields.lastName,
+          resendApiKey: options.resendApiKey,
+          subscriptionField: options.subscriptionField,
+        }),
+        createEmailTemplatesCollection(options.mediaCollection),
         emailLogsCollection,
       ],
       globals: [...(config.globals ?? []), emailSettingsGlobal],

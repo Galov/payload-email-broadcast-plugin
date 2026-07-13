@@ -3,25 +3,26 @@ import type { CollectionConfig } from "payload";
 export const emailLogsCollection: CollectionConfig = {
   slug: "email-logs",
   labels: {
-    singular: "Email Log",
-    plural: "Email Logs",
+    singular: "Имейл лог",
+    plural: "Имейл логове",
   },
   admin: {
-    group: "Broadcasts",
-    description: "Per-recipient delivery records for broadcast activity.",
+    group: "Кампании",
+    description: "История на изпращането по отделен получател.",
   },
   fields: [
     {
       name: "broadcast",
+      label: "Кампания",
       type: "relationship",
       relationTo: "email-broadcasts",
       required: true,
     },
-    { name: "email", type: "text", required: true },
-    { name: "recipientId", type: "text" },
-    { name: "status", type: "text", required: true },
-    { name: "error", type: "textarea" },
-    { name: "sentAt", type: "date" },
-    { name: "providerMessageId", type: "text" },
+    { name: "email", label: "Имейл", type: "text", required: true },
+    { name: "recipientId", label: "ID на получателя", type: "text" },
+    { name: "status", label: "Статус", type: "text", required: true },
+    { name: "error", label: "Грешка", type: "textarea" },
+    { name: "sentAt", label: "Изпратено на", type: "date" },
+    { name: "providerMessageId", label: "ID от доставчика", type: "text" },
   ],
 };
