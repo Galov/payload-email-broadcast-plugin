@@ -14,6 +14,10 @@ import {
   type RecipientPreviewCandidate,
   type RecipientPreviewResult,
 } from "../utils/recipients.js";
+import {
+  getRelationshipId,
+  resolveRecipientIdsFromGroups,
+} from "../utils/sendCommon.js";
 
 type CreateEmailBroadcastsCollectionArgs = {
   defaultFromEmail?: string;
@@ -142,6 +146,7 @@ export const createEmailBroadcastsCollection = ({
     };
     const recipientMode =
       effectiveData.recipientMode === "subscribed" ||
+      effectiveData.recipientMode === "groups" ||
       effectiveData.recipientMode === "custom"
         ? effectiveData.recipientMode
         : "all";
@@ -150,31 +155,27 @@ export const createEmailBroadcastsCollection = ({
 
     let previewResult: RecipientPreviewResult;
 
-    if (recipientMode === "custom") {
-      const customRecipients = Array.isArray(effectiveData.customRecipients)
-        ? effectiveData.customRecipients
-        : [];
-      const recipientIds = customRecipients
-        .map((value) => {
-          if (
-            typeof value === "string" ||
-            typeof value === "number"
-          ) {
-            return value;
-          }
+    if (recipientMode === "custom" || recipientMode === "groups") {
+      const recipientIds =
+        recipientMode === "custom"
+          ? (Array.isArray(effectiveData.customRecipients)
+              ? effectiveData.customRecipients
+              : [])
+              .map(getRelationshipId)
+              .filter((value): value is number | string => value !== null)
+          : [];
 
-          if (
-            value &&
-            typeof value === "object" &&
-            "id" in value &&
-            (typeof value.id === "string" || typeof value.id === "number")
-          ) {
-            return value.id;
-          }
-
-          return null;
-        })
-        .filter((value): value is number | string => value !== null);
+      if (recipientMode === "groups") {
+        const selectedGroups = Array.isArray(effectiveData.recipientGroups)
+          ? effectiveData.recipientGroups
+          : [];
+        recipientIds.push(
+          ...(await resolveRecipientIdsFromGroups({
+            payload: req.payload,
+            selectedGroups,
+          })),
+        );
+      }
 
       if (recipientIds.length === 0) {
         previewResult = buildRecipientPreview({
@@ -361,11 +362,24 @@ export const createEmailBroadcastsCollection = ({
         options: [
           { label: "Всички", value: "all" },
           { label: "Абонирани", value: "subscribed" },
+          { label: "Групи", value: "groups" },
           { label: "Ръчно избрани", value: "custom" },
         ],
         admin: {
           description:
-            "Избери дали да се изпрати до всички, само до абонираните или до ръчно избрани получатели.",
+            "Избери дали да се изпрати до всички, само до абонираните, до групи или до ръчно избрани получатели.",
+        },
+      },
+      {
+        name: "recipientGroups",
+        label: "Групи получатели",
+        type: "relationship",
+        relationTo: "email-recipient-groups",
+        hasMany: true,
+        admin: {
+          condition: (_, siblingData) => siblingData?.recipientMode === "groups",
+          description:
+            "Избери една или повече групи. Дублираните имейли ще бъдат премахнати автоматично.",
         },
       },
       {

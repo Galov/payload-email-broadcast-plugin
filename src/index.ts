@@ -1,5 +1,6 @@
 import { createEmailBroadcastsCollection } from "./collections/EmailBroadcasts.js";
 import { emailLogsCollection } from "./collections/EmailLogs.js";
+import { createEmailRecipientGroupsCollection } from "./collections/EmailRecipientGroups.js";
 import { createEmailTemplatesCollection } from "./collections/EmailTemplates.js";
 import { emailSettingsGlobal } from "./globals/EmailSettings.js";
 import type { Config, Plugin } from "payload";
@@ -63,6 +64,7 @@ export const emailBroadcastPlugin = (
           subscriptionField: options.subscriptionField,
         }),
         createEmailTemplatesCollection(options.mediaCollection),
+        createEmailRecipientGroupsCollection(options.usersCollection),
         emailLogsCollection,
       ],
       globals: [...(config.globals ?? []), emailSettingsGlobal],

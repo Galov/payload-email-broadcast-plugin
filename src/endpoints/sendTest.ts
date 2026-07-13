@@ -10,7 +10,11 @@ import {
 } from "../utils/emailBody.js";
 import { renderTemplate } from "../utils/renderTemplate.js";
 import { sendWithResend } from "../providers/resend.js";
-import { resolveBroadcastTemplate } from "../utils/sendCommon.js";
+import {
+  getRelationshipId,
+  resolveBroadcastTemplate,
+  resolveRecipientIdsFromGroups,
+} from "../utils/sendCommon.js";
 
 type CreateSendTestEndpointArgs = {
   defaultFromEmail?: string;
@@ -98,25 +102,18 @@ const resolveCandidateDocs = async ({
     ? broadcast.customRecipients
     : [];
 
-  if (broadcast.recipientMode === "custom") {
-    const recipientIds = customRecipients
-      .map((value) => {
-        if (typeof value === "string" || typeof value === "number") {
-          return value;
-        }
-
-        if (
-          value &&
-          typeof value === "object" &&
-          "id" in value &&
-          (typeof value.id === "string" || typeof value.id === "number")
-        ) {
-          return value.id;
-        }
-
-        return null;
-      })
-      .filter((value): value is number | string => value !== null);
+  if (broadcast.recipientMode === "custom" || broadcast.recipientMode === "groups") {
+    const recipientIds =
+      broadcast.recipientMode === "custom"
+        ? customRecipients
+            .map(getRelationshipId)
+            .filter((value): value is number | string => value !== null)
+        : await resolveRecipientIdsFromGroups({
+            payload,
+            selectedGroups: Array.isArray(broadcast.recipientGroups)
+              ? broadcast.recipientGroups
+              : [],
+          });
 
     if (recipientIds.length === 0) {
       return [];
