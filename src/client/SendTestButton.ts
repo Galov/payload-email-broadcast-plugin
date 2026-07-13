@@ -20,6 +20,20 @@ type SendTestResponse = {
   testRecipientEmail?: string;
 };
 
+type SendSummaryResponse = {
+  allowed?: boolean;
+  error?: string;
+  maxControlledRecipients?: number;
+  modeLabel?: string;
+  summary?: {
+    duplicateEmails: number;
+    finalRecipients: number;
+    recipientsWithoutEmail: number;
+    totalCandidateRecipients: number;
+    unsubscribedRecipients: number;
+  };
+};
+
 const panelStyle: React.CSSProperties = {
   alignItems: "center",
   background: "#fff",
@@ -158,8 +172,51 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
     const browserWindow = globalThis as typeof globalThis & {
       prompt?: (message?: string) => string | null;
     };
+
+    setIsLoading(true);
+    setMessage("");
+
+    let summaryText = "";
+
+    try {
+      const summaryResponse = await fetch(
+        `/api/email-broadcasts/${documentID}/send-summary`,
+      );
+      const summaryJson = (await summaryResponse.json()) as SendSummaryResponse;
+
+      if (!summaryResponse.ok || !summaryJson.summary) {
+        setMessage(`Грешка: ${summaryJson.error ?? "Неуспешна проверка преди изпращане."}`);
+        return;
+      }
+
+      const summary = summaryJson.summary;
+      summaryText = [
+        `Режим: ${summaryJson.modeLabel ?? "неизвестен"}`,
+        `Крайни получатели: ${summary.finalRecipients}`,
+        `Разгледани записи: ${summary.totalCandidateRecipients}`,
+        `Без имейл: ${summary.recipientsWithoutEmail}`,
+        `Дублирани имейли: ${summary.duplicateEmails}`,
+        `Отписани: ${summary.unsubscribedRecipients}`,
+        `Лимит за контролирано изпращане: ${summaryJson.maxControlledRecipients ?? 10}`,
+      ].join("\n");
+
+      if (!summaryJson.allowed) {
+        setMessage(
+          "Грешка: Тази кампания не може да бъде изпратена в текущия контролиран режим. Провери режима и броя крайни получатели.",
+        );
+        return;
+      }
+    } catch (error) {
+      setMessage(
+        `Грешка: ${error instanceof Error ? error.message : "Неуспешна проверка преди изпращане."}`,
+      );
+      return;
+    } finally {
+      setIsLoading(false);
+    }
+
     const confirmation = browserWindow.prompt?.(
-      'Това ще изпрати реални имейли до записаните получатели в кампанията. Засега са разрешени само режимите "Ръчно избрани" и "Групи". Напиши "ИЗПРАТИ", за да потвърдиш.',
+      `${summaryText}\n\nТова ще изпрати реални имейли до тези получатели. Напиши "ИЗПРАТИ", за да потвърдиш.`,
     );
 
     if (confirmation !== "ИЗПРАТИ") {

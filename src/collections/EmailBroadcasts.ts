@@ -5,6 +5,7 @@ import type {
   CollectionConfig,
 } from "payload";
 import { createSendBroadcastEndpoint } from "../endpoints/sendBroadcast.js";
+import { createSendSummaryEndpoint } from "../endpoints/sendSummary.js";
 import { createSendTestEndpoint } from "../endpoints/sendTest.js";
 import { createEmailRichTextEditor } from "../utils/emailEditor.js";
 import { normalizeEmailBodyValue } from "../utils/emailBody.js";
@@ -272,6 +273,18 @@ export const createEmailBroadcastsCollection = ({
           recipientLastNameField,
           recipientsCollection,
           resendApiKey,
+          subscriptionField,
+        }).handler,
+      },
+      {
+        path: "/:id/send-summary",
+        method: "get",
+        handler: createSendSummaryEndpoint({
+          maxControlledRecipients: 10,
+          recipientEmailField,
+          recipientFirstNameField,
+          recipientLastNameField,
+          recipientsCollection,
           subscriptionField,
         }).handler,
       },
