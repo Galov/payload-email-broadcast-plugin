@@ -11,7 +11,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check:render-template": "node scripts/check-render-template.mjs"
+    "check:render-template": "node scripts/check-render-template.mjs",
+    "prepare": "npm run build"
   },
   "peerDependencies": {
     "@payloadcms/richtext-lexical": "^3.76.1",
