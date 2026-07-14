@@ -25,6 +25,7 @@ type CreateSendTestEndpointArgs = {
   recipientLastNameField?: string;
   recipientsCollection: string;
   resendApiKey: string;
+  siteUrl?: string;
   subscriptionField?: string;
 };
 
@@ -246,6 +247,7 @@ export const createSendTestEndpoint = ({
   recipientLastNameField,
   recipientsCollection,
   resendApiKey,
+  siteUrl,
   subscriptionField,
 }: CreateSendTestEndpointArgs): Endpoint => {
   return {
@@ -348,6 +350,7 @@ export const createSendTestEndpoint = ({
         previewText: renderedPreviewText,
         req,
         settingsFooterText: footerText,
+        siteUrl,
         template,
         testNotice: "Той е изпратен само до конфигурирания тестов адрес.",
       });

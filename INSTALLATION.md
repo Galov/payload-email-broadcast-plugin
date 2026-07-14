@@ -24,9 +24,12 @@ pnpm add ../payload-email-broadcast-plugin
 
 ```env
 RESEND_API_KEY=re_...
+NEXT_PUBLIC_SITE_URL=https://www.reddevils.bg
 ```
 
 Не пази Resend API key в Payload admin или в базата.
+
+`NEXT_PUBLIC_SITE_URL` се използва, за да могат изображенията в имейлите да получат абсолютен URL. Без него email клиентите няма да могат да заредят относителни media URL-и като `/api/media/file/...`.
 
 ## 3. Payload config
 
@@ -48,6 +51,7 @@ export default buildConfig({
         firstName: 'name',
       },
       resendApiKey: process.env.RESEND_API_KEY || '',
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reddevils.bg',
     }),
   ],
 })
@@ -64,6 +68,7 @@ emailBroadcastPlugin({
   },
   subscriptionField: 'newsletterSubscribed',
   resendApiKey: process.env.RESEND_API_KEY || '',
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reddevils.bg',
 })
 ```
 
@@ -78,6 +83,8 @@ emailBroadcastPlugin({
 `recipientFields.lastName` се задава само ако сайтът има отделно поле за фамилия.
 
 `subscriptionField` се задава само ако сайтът има реално boolean поле за абонамент. Ако липсва, не го добавяй.
+
+`siteUrl` трябва да е публичният адрес на сайта без slash накрая. За RDBG това е `https://www.reddevils.bg`.
 
 ## 5. Настройки в Payload admin след инсталация
 

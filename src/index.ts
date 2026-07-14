@@ -36,6 +36,7 @@ export type EmailBroadcastPluginOptions = {
   unsubscribeTokenField?: string;
   mediaCollection?: string;
   resendApiKey: string;
+  siteUrl?: string;
   defaultFromEmail?: string;
   defaultFromName?: string;
   defaultReplyTo?: string;
@@ -61,6 +62,7 @@ export const emailBroadcastPlugin = (
           recipientFirstNameField: options.recipientFields.firstName,
           recipientLastNameField: options.recipientFields.lastName,
           resendApiKey: options.resendApiKey,
+          siteUrl: options.siteUrl,
           subscriptionField: options.subscriptionField,
         }),
         createEmailTemplatesCollection(options.mediaCollection),

@@ -87,14 +87,41 @@ const escapeHtml = (value: string): string => {
     .replace(/'/g, "&#39;");
 };
 
-const getUploadUrl = (value: unknown): string | null => {
+const makeAbsoluteUrl = ({
+  siteUrl,
+  url,
+}: {
+  siteUrl?: string;
+  url: string;
+}) => {
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  const normalizedSiteUrl = asNonEmptyString(siteUrl);
+
+  if (!normalizedSiteUrl || !url.startsWith("/")) {
+    return url;
+  }
+
+  return `${normalizedSiteUrl.replace(/\/$/, "")}${url}`;
+};
+
+const getUploadUrl = ({
+  siteUrl,
+  value,
+}: {
+  siteUrl?: string;
+  value: unknown;
+}): string | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
 
   const upload = value as Record<string, unknown>;
+  const url = asNonEmptyString(upload.url);
 
-  return asNonEmptyString(upload.url);
+  return url ? makeAbsoluteUrl({ siteUrl, url }) : null;
 };
 
 const isHexColor = (value: string | null): value is string => {
@@ -107,6 +134,7 @@ export const renderEmailLayoutHTML = async ({
   previewText,
   req,
   settingsFooterText,
+  siteUrl,
   template,
   testNotice,
 }: {
@@ -115,6 +143,7 @@ export const renderEmailLayoutHTML = async ({
   previewText?: string;
   req: PayloadRequest;
   settingsFooterText?: string | null;
+  siteUrl?: string;
   template?: Record<string, unknown> | null;
   testNotice?: string;
 }) => {
@@ -132,7 +161,10 @@ export const renderEmailLayoutHTML = async ({
   const contentBackgroundColor = isHexColor(templateContentBackgroundColor)
     ? templateContentBackgroundColor
     : "#ffffff";
-  const headerImageUrl = getUploadUrl(template?.headerImage);
+  const headerImageUrl = getUploadUrl({
+    siteUrl,
+    value: template?.headerImage,
+  });
   const headerTitle =
     asNonEmptyString(template?.headerTitle) ??
     asNonEmptyString(template?.name) ??

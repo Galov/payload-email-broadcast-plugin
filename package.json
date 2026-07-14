@@ -1,6 +1,6 @@
 {
   "name": "payload-email-broadcast-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reusable Payload v3 plugin for broadcast email workflows.",
   "license": "MIT",
   "type": "module",

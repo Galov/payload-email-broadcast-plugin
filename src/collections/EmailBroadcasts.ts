@@ -30,6 +30,7 @@ type CreateEmailBroadcastsCollectionArgs = {
   recipientFirstNameField?: string;
   recipientLastNameField?: string;
   resendApiKey: string;
+  siteUrl?: string;
   subscriptionField?: string;
 };
 
@@ -43,6 +44,7 @@ export const createEmailBroadcastsCollection = ({
   recipientFirstNameField,
   recipientLastNameField,
   resendApiKey,
+  siteUrl,
   subscriptionField,
 }: CreateEmailBroadcastsCollectionArgs): CollectionConfig => {
   const applyTemplateContent: CollectionBeforeValidateHook = async ({
@@ -273,6 +275,7 @@ export const createEmailBroadcastsCollection = ({
           recipientLastNameField,
           recipientsCollection,
           resendApiKey,
+          siteUrl,
           subscriptionField,
         }).handler,
       },
@@ -300,6 +303,7 @@ export const createEmailBroadcastsCollection = ({
           recipientLastNameField,
           recipientsCollection,
           resendApiKey,
+          siteUrl,
           subscriptionField,
         }).handler,
       },

@@ -21,6 +21,7 @@ type CreateSendBroadcastEndpointArgs = SendCommonConfig & {
   defaultFromName?: string;
   defaultReplyTo?: string;
   resendApiKey: string;
+  siteUrl?: string;
 };
 
 const MAX_CONTROLLED_RECIPIENTS = 10;
@@ -34,6 +35,7 @@ export const createSendBroadcastEndpoint = ({
   recipientLastNameField,
   recipientsCollection,
   resendApiKey,
+  siteUrl,
   subscriptionField,
 }: CreateSendBroadcastEndpointArgs): Endpoint => {
   const config: SendCommonConfig = {
@@ -193,6 +195,7 @@ export const createSendBroadcastEndpoint = ({
           previewText,
           req,
           settingsFooterText: footerText,
+          siteUrl,
           template,
         });
         const text = [previewText, stripHtml(bodyHtml), footerText]
