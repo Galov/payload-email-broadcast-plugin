@@ -83,11 +83,15 @@ export const createSendBroadcastEndpoint = ({
         overrideAccess: true,
       })) as Record<string, unknown>;
 
-      if (broadcast.recipientMode !== "custom" && broadcast.recipientMode !== "groups") {
+      if (
+        broadcast.recipientMode !== "custom" &&
+        broadcast.recipientMode !== "groups" &&
+        broadcast.recipientMode !== "all"
+      ) {
         return Response.json(
           {
             error:
-              "Първо запази кампанията с режим \"Ръчно избрани\" или \"Групи\". Реалното изпращане използва записаните данни от базата.",
+              "Първо запази кампанията с режим \"Ръчно избрани\", \"Групи\" или \"Всички\". Реалното изпращане използва записаните данни от базата.",
           },
           { status: 400 },
         );

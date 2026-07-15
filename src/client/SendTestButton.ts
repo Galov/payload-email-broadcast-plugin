@@ -280,7 +280,7 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
     React.createElement(
       "p",
       { style: { color: "#374151", fontSize: 14, lineHeight: 1.5, margin: 0 } },
-      "Запази кампанията преди реално изпращане. Реалният бутон засега работи само за ръчно избрани получатели и групи.",
+      "Запази кампанията преди реално изпращане. Реалният бутон работи за ръчно избрани получатели, групи и всички, но само в рамките на контролния лимит.",
     ),
     message
       ? React.createElement(

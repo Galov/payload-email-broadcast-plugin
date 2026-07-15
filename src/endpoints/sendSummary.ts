@@ -72,7 +72,9 @@ export const createSendSummaryEndpoint = ({
       })) as Record<string, unknown>;
 
       const isAllowedMode =
-        broadcast.recipientMode === "custom" || broadcast.recipientMode === "groups";
+        broadcast.recipientMode === "custom" ||
+        broadcast.recipientMode === "groups" ||
+        broadcast.recipientMode === "all";
 
       const candidates = await resolveCandidateDocs({
         broadcast,
