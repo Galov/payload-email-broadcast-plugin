@@ -17,13 +17,17 @@
 13. `Email Logs` е source of truth за progress и recovery при прекъснато изпращане.
 14. Реалното изпращане използва два jobs етапа: `prepareEmailBroadcast` и `processEmailBroadcastBatch`.
 15. Инсталационната документация трябва да описва jobs runner настройка за локална среда, Vercel и VPS/Hetzner.
+16. Групите по критерии в първата версия са snapshot групи, не live dynamic queries.
+17. Host проектът избира позволените criteria fields чрез `groupFilterFields`, за да няма project-specific hardcode в plugin-а.
+18. Plugin-ът трябва да infer-ва label, type и `select`/`radio` options от recipient collection config, когато може.
 
 ## Отворени решения
 
 1. Трябва да се потвърди дали user fields за newsletter да живеят директно в users collection, или е нужен по-чист Payload-specific алтернативен модел.
 2. Трябва да се реши дали unsubscribe token-ите ще се генерират lazy, при subscription, или при първа нужда от broadcast.
-3. Трябва да се проектира advanced recipient groups UI.
+3. Трябва да се реши дали по-късно са нужни live dynamic recipient groups.
 4. Трябва да се реши какъв progress UI да се показва за queued/sending кампании.
+5. Трябва да се реши дали advanced groups трябва да поддържат nested fields, relationships и array fields.
 
 ## Правила за изпълнение
 

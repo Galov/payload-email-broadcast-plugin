@@ -5,6 +5,10 @@ import { createEmailTemplatesCollection } from "./collections/EmailTemplates.js"
 import { emailSettingsGlobal } from "./globals/EmailSettings.js";
 import { createPrepareEmailBroadcastTask } from "./jobs/prepareBroadcast.js";
 import { createProcessEmailBroadcastBatchTask } from "./jobs/processBroadcastBatch.js";
+import {
+  resolveSnapshotFilterFields,
+  type EmailBroadcastGroupFilterField,
+} from "./utils/groupFilters.js";
 import type { Config, Plugin } from "payload";
 
 export {
@@ -43,6 +47,7 @@ export type EmailBroadcastPluginOptions = {
   defaultFromName?: string;
   defaultReplyTo?: string;
   dryRun?: boolean;
+  groupFilterFields?: EmailBroadcastGroupFilterField[];
 };
 
 export type EmailBroadcastPlugin = Plugin;
@@ -51,6 +56,14 @@ export const emailBroadcastPlugin = (
   options: EmailBroadcastPluginOptions,
 ): EmailBroadcastPlugin => {
   return (config: Config): Config => {
+    const recipientsCollection = config.collections?.find(
+      (collection) => collection.slug === options.usersCollection,
+    );
+    const groupFilterFields = resolveSnapshotFilterFields({
+      configuredFields: options.groupFilterFields,
+      recipientsCollection,
+    });
+
     return {
       ...config,
       collections: [
@@ -70,7 +83,10 @@ export const emailBroadcastPlugin = (
           subscriptionField: options.subscriptionField,
         }),
         createEmailTemplatesCollection(options.mediaCollection),
-        createEmailRecipientGroupsCollection(options.usersCollection),
+        createEmailRecipientGroupsCollection(
+          options.usersCollection,
+          groupFilterFields,
+        ),
         emailLogsCollection,
       ],
       globals: [...(config.globals ?? []), emailSettingsGlobal],

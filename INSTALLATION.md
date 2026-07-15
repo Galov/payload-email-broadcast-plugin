@@ -54,6 +54,7 @@ export default buildConfig({
         email: 'email',
         firstName: 'name',
       },
+      groupFilterFields: ['membershipStatus', 'membershipYear', 'createdAt'],
       resendApiKey: process.env.RESEND_API_KEY || '',
       siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reddevils.bg',
     }),
@@ -89,6 +90,34 @@ emailBroadcastPlugin({
 `subscriptionField` се задава само ако сайтът има реално boolean поле за абонамент. Ако липсва, не го добавяй.
 
 `siteUrl` трябва да е публичният адрес на сайта без slash накрая. За RDBG това е `https://www.reddevils.bg`.
+
+`groupFilterFields` определя по кои полета админът може да създава имейл групи по критерии. Това не трябва да включва всяко поле от колекцията, а само безопасните и смислени за сегментиране полета.
+
+Минималният вариант е списък с field names:
+
+```ts
+groupFilterFields: ['membershipStatus', 'membershipYear', 'createdAt']
+```
+
+Plugin-ът ще се опита сам да вземе label, type и опциите за `select`/`radio` от Payload collection config.
+
+Ако искаш да override-неш label или options, използвай object config:
+
+```ts
+groupFilterFields: [
+  {
+    name: 'membershipStatus',
+    label: 'Статус на членството',
+  },
+  {
+    name: 'membershipYear',
+    label: 'Година на членство',
+    type: 'number',
+  },
+]
+```
+
+Първата версия поддържа top-level полета от тип `text`, `email`, `number`, `date`, `checkbox`, `select` и `radio`.
 
 ## 5. Настройки в Payload admin след инсталация
 
@@ -309,6 +338,13 @@ if (!process.env.EMAIL_JOBS_RUNNER_SECRET || secret !== process.env.EMAIL_JOBS_R
 - footer.
 
 След това създай `Имейл група`, ако ще изпращаш до подбран списък от членове.
+
+Групата може да бъде:
+
+- ръчна, чрез избор на конкретни получатели;
+- snapshot група по критерии, ако `groupFilterFields` е настроено в plugin config.
+
+Snapshot групата записва конкретните получатели в момента на създаването. Тя не се обновява автоматично, ако по-късно някой член промени статус или друго поле.
 
 Накрая създай `Имейл кампания`, избери шаблон, избери режим на получателите и запази.
 

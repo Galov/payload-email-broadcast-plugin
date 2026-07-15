@@ -83,6 +83,21 @@ payload-email-broadcast-plugin/
 
 Global-ът държи административните настройки за изпращане и footer съдържание, без secret credentials.
 
+### `Email Recipient Groups`
+
+Групите са статични списъци от получатели.
+
+Има два начина за създаване:
+
+- ръчно избиране на получатели;
+- snapshot създаване по критерии.
+
+Snapshot групата използва `groupFilterFields` от plugin config. Plugin-ът взема позволените полета от recipient collection config и поддържа само top-level полета от тип `text`, `email`, `number`, `date`, `checkbox`, `select` и `radio`.
+
+За `select` и `radio` plugin-ът използва options от Payload field config, когато са налични.
+
+Snapshot групата не е live dynamic query. При създаването й се записват конкретните recipient IDs. Това прави кампанията проследима и предпазва от неочаквана промяна на аудиторията след време.
+
 ## Публичен endpoint
 
 Планиран е публичен endpoint:
