@@ -117,13 +117,14 @@ Broadcast изпращането не трябва да зависи от едн
 
 1. Админът натиска реално изпращане.
 2. Endpoint-ът валидира кампанията и получателите.
-3. Създават се `email-logs` записи за всички валидни получатели със статус `pending`.
-4. Кампанията се маркира като `queued`.
-5. Queue-ва се Payload Jobs task в queue `email-broadcasts`.
-6. Task-ът обработва малък batch от pending получатели.
-7. Всеки получател се маркира като `sending`, после `sent` или `failed`.
-8. Ако остават pending получатели, task-ът queue-ва следващ batch.
-9. Когато няма pending/sending получатели, кампанията се маркира като `sent` или `failed`.
+3. Кампанията се маркира като `queued`.
+4. Queue-ва се prepare task в queue `email-broadcasts`.
+5. Prepare task-ът създава `email-logs` записи за всички валидни получатели със статус `pending`.
+6. Prepare task-ът queue-ва batch task.
+7. Batch task-ът обработва малък batch от pending получатели.
+8. Всеки получател се маркира като `sending`, после `sent` или `failed`.
+9. Ако остават pending получатели, batch task-ът queue-ва следващ batch.
+10. Когато няма pending/sending получатели, кампанията се маркира като `sent` или `failed`.
 
 ## Payload Jobs
 
@@ -132,12 +133,25 @@ Plugin-ът регистрира Payload task за обработка на broad
 Начални решения:
 
 - task: `processEmailBroadcastBatch`
+- prepare task: `prepareEmailBroadcast`
 - queue: `email-broadcasts`
 - batch size: `25`
 - retry attempts: `2`
 - source of truth за progress: `email-logs`
 
 Task-ът трябва да бъде идемпотентен. Ако процесът спре или job бъде повторен, вече изпратените получатели не трябва да получат втори имейл.
+
+## Jobs runner requirement
+
+Plugin-ът регистрира Payload task и queue-ва jobs, но host проектът трябва да осигури механизъм, който реално изпълнява jobs от queue `email-broadcasts`.
+
+Това е задължителна част от инсталацията:
+
+- локално: ръчно стартиране на jobs runner или защитен endpoint за тест;
+- Vercel/serverless: защитен cron endpoint, който вика `payload.jobs.run({ queue: "email-broadcasts" })`;
+- Hetzner/собствен сървър: cron, systemd timer или постоянен worker процес.
+
+Без jobs runner кампанията може да стигне до статус `queued`, но имейлите няма да бъдат изпратени.
 
 ## Email log statuses
 

@@ -217,10 +217,11 @@ npm run build
 Задачи:
 
 - регистриране на Payload Jobs task `processEmailBroadcastBatch`;
+- регистриране на Payload Jobs task `prepareEmailBroadcast`;
 - използване на queue `email-broadcasts`;
 - добавяне на `queued` статус за кампания;
 - добавяне на `pending`, `sending`, `sent`, `failed`, `skipped` статуси за `email-logs`;
-- промяна на real send endpoint-а така, че да подготвя logs и да queue-ва job, вместо да изпраща директно;
+- промяна на real send endpoint-а така, че да queue-ва prepare job и да не върши тежка работа в HTTP заявката;
 - batch processing с начален batch size `25`;
 - retry настройка с начален лимит `2`;
 - защита срещу повторно изпращане към вече `sent` получател;
@@ -237,7 +238,7 @@ npm run build
 
 - build минава;
 - real send към малка тестова група queue-ва job;
-- logs се създават като `pending`;
+- prepare job създава logs като `pending`;
 - task обработва batch и маркира logs като `sent` или `failed`;
 - повторно стартиране не изпраща повторно към `sent` получатели;
 - кампанията показва коректен progress.
@@ -251,7 +252,7 @@ npm run build
 Задачи:
 
 - разрешаване на големи recipient sets само след стабилен queue flow;
-- премахване или замяна на временния контролен лимит;
+- потвърждение, че големите recipient sets минават през Jobs queue след explicit admin confirmation;
 - проверка на batch size спрямо Resend и hosting средата;
 - настройка/описание как jobs се стартират на Vercel;
 - настройка/описание как jobs се стартират на Hetzner;

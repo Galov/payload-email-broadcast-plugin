@@ -15,14 +15,15 @@
 11. Началният batch size за broadcast jobs е `25`.
 12. Началният retry лимит за broadcast jobs е `2`.
 13. `Email Logs` е source of truth за progress и recovery при прекъснато изпращане.
+14. Реалното изпращане използва два jobs етапа: `prepareEmailBroadcast` и `processEmailBroadcastBatch`.
+15. Инсталационната документация трябва да описва jobs runner настройка за локална среда, Vercel и VPS/Hetzner.
 
 ## Отворени решения
 
 1. Трябва да се потвърди дали user fields за newsletter да живеят директно в users collection, или е нужен по-чист Payload-specific алтернативен модел.
 2. Трябва да се реши дали unsubscribe token-ите ще се генерират lazy, при subscription, или при първа нужда от broadcast.
-3. Трябва да се уточни как host проектът стартира Payload Jobs на Vercel.
-4. Трябва да се уточни препоръчителният runner/cron модел за Hetzner.
-5. Трябва да се проектира advanced recipient groups UI.
+3. Трябва да се проектира advanced recipient groups UI.
+4. Трябва да се реши какъв progress UI да се показва за queued/sending кампании.
 
 ## Правила за изпълнение
 

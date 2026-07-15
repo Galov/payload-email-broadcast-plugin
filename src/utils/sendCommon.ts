@@ -162,6 +162,75 @@ export const resolveRecipientIdsFromGroups = async ({
   return recipientIds;
 };
 
+const mapRecipientDocToCandidate = ({
+  config,
+  doc,
+}: {
+  config: SendCommonConfig;
+  doc: Record<string, unknown>;
+}): CandidateDoc => {
+  const {
+    recipientEmailField,
+    recipientFirstNameField,
+    recipientLastNameField,
+    subscriptionField,
+  } = config;
+
+  return {
+    email: doc[recipientEmailField],
+    id:
+      typeof doc.id === "number" || typeof doc.id === "string"
+        ? doc.id
+        : undefined,
+    ...(recipientFirstNameField
+      ? { [recipientFirstNameField]: doc[recipientFirstNameField] }
+      : {}),
+    ...(recipientLastNameField
+      ? { [recipientLastNameField]: doc[recipientLastNameField] }
+      : {}),
+    ...(subscriptionField
+      ? { newsletterSubscribed: doc[subscriptionField] }
+      : {}),
+  };
+};
+
+const loadAllRecipientDocs = async ({
+  config,
+  payload,
+}: {
+  config: SendCommonConfig;
+  payload: Payload;
+}): Promise<CandidateDoc[]> => {
+  const candidates: CandidateDoc[] = [];
+  const limit = 200;
+  let page = 1;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const result = await payload.find({
+      collection: config.recipientsCollection,
+      depth: 0,
+      limit,
+      overrideAccess: true,
+      page,
+    });
+
+    candidates.push(
+      ...result.docs.map((doc) =>
+        mapRecipientDocToCandidate({
+          config,
+          doc: doc as Record<string, unknown>,
+        }),
+      ),
+    );
+
+    hasNextPage = result.hasNextPage === true;
+    page += 1;
+  }
+
+  return candidates;
+};
+
 const loadRecipientDocsByIds = async ({
   config,
   payload,
@@ -175,16 +244,8 @@ const loadRecipientDocsByIds = async ({
     return [];
   }
 
-  const {
-    recipientEmailField,
-    recipientFirstNameField,
-    recipientLastNameField,
-    recipientsCollection,
-    subscriptionField,
-  } = config;
-
   const result = await payload.find({
-    collection: recipientsCollection,
+    collection: config.recipientsCollection,
     depth: 0,
     limit: recipientIds.length,
     overrideAccess: true,
@@ -196,26 +257,12 @@ const loadRecipientDocsByIds = async ({
     },
   });
 
-  return result.docs.map((doc) => {
-    const typedDoc = doc as Record<string, unknown>;
-
-    return {
-      email: typedDoc[recipientEmailField],
-      id:
-        typeof typedDoc.id === "number" || typeof typedDoc.id === "string"
-          ? typedDoc.id
-          : undefined,
-      ...(recipientFirstNameField
-        ? { [recipientFirstNameField]: typedDoc[recipientFirstNameField] }
-        : {}),
-      ...(recipientLastNameField
-        ? { [recipientLastNameField]: typedDoc[recipientLastNameField] }
-        : {}),
-      ...(subscriptionField
-        ? { newsletterSubscribed: typedDoc[subscriptionField] }
-        : {}),
-    };
-  });
+  return result.docs.map((doc) =>
+    mapRecipientDocToCandidate({
+      config,
+      doc: doc as Record<string, unknown>,
+    }),
+  );
 };
 
 export const resolveCandidateDocs = async ({
@@ -227,14 +274,6 @@ export const resolveCandidateDocs = async ({
   config: SendCommonConfig;
   payload: Payload;
 }): Promise<CandidateDoc[]> => {
-  const {
-    recipientEmailField,
-    recipientFirstNameField,
-    recipientLastNameField,
-    recipientsCollection,
-    subscriptionField,
-  } = config;
-
   if (broadcast.recipientMode === "custom" || broadcast.recipientMode === "groups") {
     const recipientIds =
       broadcast.recipientMode === "custom"
@@ -253,34 +292,7 @@ export const resolveCandidateDocs = async ({
     });
   }
 
-  const result = await payload.find({
-    collection: recipientsCollection,
-    depth: 0,
-    limit: 100,
-    overrideAccess: true,
-    pagination: false,
-  });
-
-  return result.docs.map((doc) => {
-    const typedDoc = doc as Record<string, unknown>;
-
-    return {
-      email: typedDoc[recipientEmailField],
-      id:
-        typeof typedDoc.id === "number" || typeof typedDoc.id === "string"
-          ? typedDoc.id
-          : undefined,
-      ...(recipientFirstNameField
-        ? { [recipientFirstNameField]: typedDoc[recipientFirstNameField] }
-        : {}),
-      ...(recipientLastNameField
-        ? { [recipientLastNameField]: typedDoc[recipientLastNameField] }
-        : {}),
-      ...(subscriptionField
-        ? { newsletterSubscribed: typedDoc[subscriptionField] }
-        : {}),
-    };
-  });
+  return loadAllRecipientDocs({ config, payload });
 };
 
 export const getBroadcastPreviewType = (

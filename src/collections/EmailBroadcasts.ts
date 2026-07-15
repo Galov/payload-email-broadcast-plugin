@@ -24,6 +24,7 @@ type CreateEmailBroadcastsCollectionArgs = {
   defaultFromEmail?: string;
   defaultFromName?: string;
   defaultReplyTo?: string;
+  dryRun?: boolean;
   mediaCollection?: string;
   recipientsCollection: string;
   recipientEmailField: string;
@@ -38,6 +39,7 @@ export const createEmailBroadcastsCollection = ({
   defaultFromEmail,
   defaultFromName,
   defaultReplyTo,
+  dryRun,
   mediaCollection = "media",
   recipientsCollection,
   recipientEmailField,
@@ -263,6 +265,7 @@ export const createEmailBroadcastsCollection = ({
           defaultFromEmail,
           defaultFromName,
           defaultReplyTo,
+          dryRun,
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
@@ -276,7 +279,7 @@ export const createEmailBroadcastsCollection = ({
         path: "/:id/send-summary",
         method: "get",
         handler: createSendSummaryEndpoint({
-          maxControlledRecipients: 10,
+          dryRun,
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
@@ -347,6 +350,7 @@ export const createEmailBroadcastsCollection = ({
         options: [
           { label: "Чернова", value: "draft" },
           { label: "Готова", value: "ready" },
+          { label: "В опашката", value: "queued" },
           { label: "Изпраща се", value: "sending" },
           { label: "Изпратена", value: "sent" },
           { label: "Неуспешна", value: "failed" },

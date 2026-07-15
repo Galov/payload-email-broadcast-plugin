@@ -3,6 +3,8 @@ import { emailLogsCollection } from "./collections/EmailLogs.js";
 import { createEmailRecipientGroupsCollection } from "./collections/EmailRecipientGroups.js";
 import { createEmailTemplatesCollection } from "./collections/EmailTemplates.js";
 import { emailSettingsGlobal } from "./globals/EmailSettings.js";
+import { createPrepareEmailBroadcastTask } from "./jobs/prepareBroadcast.js";
+import { createProcessEmailBroadcastBatchTask } from "./jobs/processBroadcastBatch.js";
 import type { Config, Plugin } from "payload";
 
 export {
@@ -40,6 +42,7 @@ export type EmailBroadcastPluginOptions = {
   defaultFromEmail?: string;
   defaultFromName?: string;
   defaultReplyTo?: string;
+  dryRun?: boolean;
 };
 
 export type EmailBroadcastPlugin = Plugin;
@@ -56,6 +59,7 @@ export const emailBroadcastPlugin = (
           defaultFromEmail: options.defaultFromEmail,
           defaultFromName: options.defaultFromName,
           defaultReplyTo: options.defaultReplyTo,
+          dryRun: options.dryRun,
           mediaCollection: options.mediaCollection,
           recipientsCollection: options.usersCollection,
           recipientEmailField: options.recipientFields.email,
@@ -70,6 +74,38 @@ export const emailBroadcastPlugin = (
         emailLogsCollection,
       ],
       globals: [...(config.globals ?? []), emailSettingsGlobal],
+      jobs: {
+        ...config.jobs,
+        tasks: [
+          ...(config.jobs?.tasks ?? []),
+          createPrepareEmailBroadcastTask({
+            defaultFromEmail: options.defaultFromEmail,
+            defaultFromName: options.defaultFromName,
+            defaultReplyTo: options.defaultReplyTo,
+            dryRun: options.dryRun,
+            recipientEmailField: options.recipientFields.email,
+            recipientFirstNameField: options.recipientFields.firstName,
+            recipientLastNameField: options.recipientFields.lastName,
+            recipientsCollection: options.usersCollection,
+            resendApiKey: options.resendApiKey,
+            siteUrl: options.siteUrl,
+            subscriptionField: options.subscriptionField,
+          }),
+          createProcessEmailBroadcastBatchTask({
+            defaultFromEmail: options.defaultFromEmail,
+            defaultFromName: options.defaultFromName,
+            defaultReplyTo: options.defaultReplyTo,
+            dryRun: options.dryRun,
+            recipientEmailField: options.recipientFields.email,
+            recipientFirstNameField: options.recipientFields.firstName,
+            recipientLastNameField: options.recipientFields.lastName,
+            recipientsCollection: options.usersCollection,
+            resendApiKey: options.resendApiKey,
+            siteUrl: options.siteUrl,
+            subscriptionField: options.subscriptionField,
+          }),
+        ],
+      },
     };
   };
 };

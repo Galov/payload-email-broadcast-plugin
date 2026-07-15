@@ -12,18 +12,20 @@ type SendTestButtonProps = {
 
 type SendTestResponse = {
   deliveredCount?: number;
+  dryRun?: boolean;
   error?: string;
   failedCount?: number;
   ok?: boolean;
   providerMessageId?: string;
+  queued?: boolean;
   recipientCount?: number;
   testRecipientEmail?: string;
 };
 
 type SendSummaryResponse = {
   allowed?: boolean;
+  dryRun?: boolean;
   error?: string;
-  maxControlledRecipients?: number;
   modeLabel?: string;
   summary?: {
     duplicateEmails: number;
@@ -191,14 +193,18 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
 
       const summary = summaryJson.summary;
       summaryText = [
+        summaryJson.dryRun
+          ? "DRY RUN: имейлите няма да бъдат изпратени през Resend"
+          : null,
         `Режим: ${summaryJson.modeLabel ?? "неизвестен"}`,
         `Крайни получатели: ${summary.finalRecipients}`,
         `Разгледани записи: ${summary.totalCandidateRecipients}`,
         `Без имейл: ${summary.recipientsWithoutEmail}`,
         `Дублирани имейли: ${summary.duplicateEmails}`,
         `Отписани: ${summary.unsubscribedRecipients}`,
-        `Лимит за контролирано изпращане: ${summaryJson.maxControlledRecipients ?? 10}`,
-      ].join("\n");
+      ]
+        .filter((value): value is string => typeof value === "string")
+        .join("\n");
 
       if (!summaryJson.allowed) {
         setMessage(
@@ -243,7 +249,9 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
       }
 
       setMessage(
-        `Изпращането приключи. Успешни: ${json.deliveredCount ?? 0}. Неуспешни: ${json.failedCount ?? 0}.`,
+        json.dryRun
+          ? "Кампанията е поставена в DRY RUN опашката. Реални имейли няма да бъдат изпратени."
+          : "Кампанията е поставена в опашката за изпращане.",
       );
     } catch (error) {
       setMessage(
@@ -278,9 +286,9 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
       isLoading ? "Изпращане..." : "Изпрати реално",
     ),
     React.createElement(
-      "p",
+          "p",
       { style: { color: "#374151", fontSize: 14, lineHeight: 1.5, margin: 0 } },
-      "Запази кампанията преди реално изпращане. Реалният бутон работи за ръчно избрани получатели, групи и всички, но само в рамките на контролния лимит.",
+      "Запази кампанията преди реално изпращане. Реалният бутон показва броя получатели, изисква потвърждение и поставя кампанията в опашка за изпращане.",
     ),
     message
       ? React.createElement(

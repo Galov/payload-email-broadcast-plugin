@@ -9,7 +9,7 @@ import {
 } from "../utils/sendCommon.js";
 
 type CreateSendSummaryEndpointArgs = SendCommonConfig & {
-  maxControlledRecipients: number;
+  dryRun?: boolean;
 };
 
 const getRecipientModeLabel = (value: unknown) => {
@@ -29,7 +29,7 @@ const getRecipientModeLabel = (value: unknown) => {
 };
 
 export const createSendSummaryEndpoint = ({
-  maxControlledRecipients,
+  dryRun,
   recipientEmailField,
   recipientFirstNameField,
   recipientLastNameField,
@@ -88,8 +88,8 @@ export const createSendSummaryEndpoint = ({
       });
 
       return Response.json({
-        allowed: isAllowedMode && summary.finalRecipients <= maxControlledRecipients,
-        maxControlledRecipients,
+        allowed: isAllowedMode,
+        dryRun: dryRun === true,
         mode: broadcast.recipientMode ?? "all",
         modeLabel: getRecipientModeLabel(broadcast.recipientMode),
         summary,
