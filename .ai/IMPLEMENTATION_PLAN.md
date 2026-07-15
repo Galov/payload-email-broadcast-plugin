@@ -210,52 +210,89 @@ npm run build
 
 Стоп условие: спиране и отчет след завършване на фазата.
 
-## Фаза 9 — Broadcast sending MVP
+## Фаза 9 — Broadcast queue foundation
 
-Цел: да се разреши реално broadcast изпращане в MVP вид.
+Цел: да се замени директното real broadcast изпращане с надежден Payload Jobs модел.
 
 Задачи:
 
-- load broadcast;
-- validate status;
-- load recipients;
-- skip invalid recipients;
-- render template;
-- send via Resend;
-- create logs;
-- update counters.
+- регистриране на Payload Jobs task `processEmailBroadcastBatch`;
+- използване на queue `email-broadcasts`;
+- добавяне на `queued` статус за кампания;
+- добавяне на `pending`, `sending`, `sent`, `failed`, `skipped` статуси за `email-logs`;
+- промяна на real send endpoint-а така, че да подготвя logs и да queue-ва job, вместо да изпраща директно;
+- batch processing с начален batch size `25`;
+- retry настройка с начален лимит `2`;
+- защита срещу повторно изпращане към вече `sent` получател;
+- обновяване на campaign counters след всеки batch.
 
 Ограничения:
 
 - Без auto-send от hooks
 - Само след изрично admin действие
-- Предпочита се simple sequential или small-batch sending
-- Структурата остава готова за бъдеща queue система
+- Без изпращане към пълен production list преди отделно човешко одобрение
+- Без commit/tag/push без изрична инструкция
 
 Проверка:
 
-- първи тест с 2-3 test users;
-- без пускане към пълния production list.
+- build минава;
+- real send към малка тестова група queue-ва job;
+- logs се създават като `pending`;
+- task обработва batch и маркира logs като `sent` или `failed`;
+- повторно стартиране не изпраща повторно към `sent` получатели;
+- кампанията показва коректен progress.
 
 Стоп условие: спиране и отчет след завършване на фазата.
 
-## Фаза 10 — Real campaign readiness
+## Фаза 10 — Large broadcast readiness
 
-Цел: да се подготви първата реална кампания.
+Цел: да се подготви безопасно изпращане към големи групи и режим `all`.
 
-Преди реално изпращане трябва да се потвърдят:
+Задачи:
+
+- разрешаване на големи recipient sets само след стабилен queue flow;
+- премахване или замяна на временния контролен лимит;
+- проверка на batch size спрямо Resend и hosting средата;
+- настройка/описание как jobs се стартират на Vercel;
+- настройка/описание как jobs се стартират на Hetzner;
+- ясна admin индикация за progress и крайно състояние;
+- документиране на recovery поведение при прекъснат процес.
+
+Преди първо голямо изпращане трябва да се потвърдят:
 
 - sender domain
 - from email
 - reply-to email
-- unsubscribe footer
 - recipient count
 - test email rendering
 - logs
 - Resend limits
+- Payload Jobs runner/cron
 
 Проверка:
 
-- изпращане само след изрично human approval.
+- тест с малка група;
+- тест с по-голяма контролирана група;
+- пълно изпращане само след изрично human approval.
 
 Стоп условие: спиране и изчакване за одобрение преди full-list broadcast.
+
+## Фаза 11 — Advanced recipient groups
+
+Цел: да се добави по-софистицирано създаване и поддръжка на групи получатели.
+
+Задачи:
+
+- bulk добавяне към група;
+- създаване на група по критерии;
+- preview преди материализиране на групата;
+- защита срещу duplicate recipients;
+- документиране на разликата между статични и бъдещи динамични групи.
+
+Проверка:
+
+- група се създава по избран критерий;
+- админът вижда preview преди запис;
+- real send към група използва същия Payload Jobs механизъм.
+
+Стоп условие: спиране и отчет след завършване на фазата.

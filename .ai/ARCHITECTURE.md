@@ -21,6 +21,8 @@ payload-email-broadcast-plugin/
       sendTest.ts
       sendBroadcast.ts
       unsubscribe.ts
+    jobs/
+      processBroadcastBatch.ts
     providers/
       resend.ts
     utils/
@@ -41,7 +43,7 @@ payload-email-broadcast-plugin/
 - `body`
 - `status`: `draft | ready | sending | sent | failed`
 - `type`: `service | marketing`
-- `recipientMode`: `all | subscribed | custom`
+- `recipientMode`: `all | subscribed | groups | custom`
 - `sentAt`
 - `recipientCount`
 - `deliveredCount`
@@ -107,19 +109,55 @@ GET /api/email-broadcasts/unsubscribe?token=...
 
 Ако директното разширяване на users collection не е най-чистият подход в Payload, архитектурата трябва да се прецизира преди implementation phase-а за unsubscribe.
 
-## Sending flow
+## Broadcast sending model
 
-Последователността за broadcast sending MVP е:
+Broadcast изпращането не трябва да зависи от една HTTP заявка. Реалното изпращане трябва да минава през Payload Jobs queue, за да работи надеждно както на serverless платформи като Vercel, така и на long-running сървъри като Hetzner.
 
-1. Зареждане на broadcast.
-2. Валидация на статуса.
-3. Зареждане на recipient-ите.
-4. Пропускане на записи без email, с duplicate email или unsubscribed при `marketing`.
-5. Render на template.
-6. Инжектиране на unsubscribe link.
-7. Създаване на log.
-8. Изпращане през Resend.
-9. Обновяване на counters.
+Основният модел е:
+
+1. Админът натиска реално изпращане.
+2. Endpoint-ът валидира кампанията и получателите.
+3. Създават се `email-logs` записи за всички валидни получатели със статус `pending`.
+4. Кампанията се маркира като `queued`.
+5. Queue-ва се Payload Jobs task в queue `email-broadcasts`.
+6. Task-ът обработва малък batch от pending получатели.
+7. Всеки получател се маркира като `sending`, после `sent` или `failed`.
+8. Ако остават pending получатели, task-ът queue-ва следващ batch.
+9. Когато няма pending/sending получатели, кампанията се маркира като `sent` или `failed`.
+
+## Payload Jobs
+
+Plugin-ът регистрира Payload task за обработка на broadcast batch.
+
+Начални решения:
+
+- task: `processEmailBroadcastBatch`
+- queue: `email-broadcasts`
+- batch size: `25`
+- retry attempts: `2`
+- source of truth за progress: `email-logs`
+
+Task-ът трябва да бъде идемпотентен. Ако процесът спре или job бъде повторен, вече изпратените получатели не трябва да получат втори имейл.
+
+## Email log statuses
+
+`Email Logs` трябва да поддържа следните статуси:
+
+- `pending`
+- `sending`
+- `sent`
+- `failed`
+- `skipped`
+
+`pending` означава, че получателят е избран, но още не е обработен.
+
+`sending` означава, че текущ batch го обработва.
+
+`sent` означава, че provider-ът е приел имейла.
+
+`failed` означава, че изпращането към този получател е неуспешно.
+
+`skipped` означава, че получателят е пропуснат по правило, например липсващ имейл, duplicate email или неподходящ subscription статус.
 
 ## Типове имейли
 

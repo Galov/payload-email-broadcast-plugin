@@ -254,13 +254,6 @@ export const createEmailBroadcastsCollection = ({
       group: "Кампании",
       description:
         "Тук се съхраняват имейл кампаниите и данните за изпращането им.",
-      components: {
-        edit: {
-          beforeDocumentControls: [
-            "payload-email-broadcast-plugin/dist/client/SendTestButton.js#SendTestButton",
-          ],
-        },
-      },
     },
     endpoints: [
       {
@@ -505,6 +498,17 @@ export const createEmailBroadcastsCollection = ({
         type: "textarea",
         admin: {
           readOnly: true,
+        },
+      },
+      {
+        name: "sendControls",
+        label: "Изпращане",
+        type: "ui",
+        admin: {
+          components: {
+            Field:
+              "payload-email-broadcast-plugin/dist/client/SendTestButton.js#SendTestButton",
+          },
         },
       },
     ],
