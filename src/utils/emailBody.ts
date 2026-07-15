@@ -45,10 +45,12 @@ export const normalizeEmailBodyValue = (
 export const renderEmailBodyHTML = async ({
   data,
   req,
+  siteUrl,
   value,
 }: {
   data: RenderTemplateData;
   req: PayloadRequest;
+  siteUrl?: string;
   value: unknown;
 }) => {
   const normalizedValue = normalizeEmailBodyValue(value);
@@ -65,7 +67,10 @@ export const renderEmailBodyHTML = async ({
     populate,
   });
 
-  return renderTemplate(html, data);
+  return absolutizeHtmlUrls({
+    html: renderTemplate(html, data),
+    siteUrl,
+  });
 };
 
 const asNonEmptyString = (value: unknown): string | null => {
@@ -105,6 +110,21 @@ const makeAbsoluteUrl = ({
   }
 
   return `${normalizedSiteUrl.replace(/\/$/, "")}${url}`;
+};
+
+const absolutizeHtmlUrls = ({
+  html,
+  siteUrl,
+}: {
+  html: string;
+  siteUrl?: string;
+}) => {
+  return html.replace(
+    /\s(src|href)=("|')([^"']+)\2/gi,
+    (match, attribute: string, quote: string, url: string) => {
+      return ` ${attribute}=${quote}${makeAbsoluteUrl({ siteUrl, url })}${quote}`;
+    },
+  );
 };
 
 const getUploadUrl = ({
@@ -173,6 +193,7 @@ export const renderEmailLayoutHTML = async ({
     ? await renderEmailBodyHTML({
         data,
         req,
+        siteUrl,
         value: template.footerBody,
       })
     : "";

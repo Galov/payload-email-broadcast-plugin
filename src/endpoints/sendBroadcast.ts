@@ -187,6 +187,7 @@ export const createSendBroadcastEndpoint = ({
         const bodyHtml = await renderEmailBodyHTML({
           data: renderData,
           req,
+          siteUrl,
           value: broadcast.body,
         });
         const html = await renderEmailLayoutHTML({

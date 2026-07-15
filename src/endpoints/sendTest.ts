@@ -337,6 +337,7 @@ export const createSendTestEndpoint = ({
       const renderedBody = await renderEmailBodyHTML({
         data: renderData,
         req,
+        siteUrl,
         value: broadcast.body,
       });
       const footerText = asNonEmptyString(settings.footerText);
