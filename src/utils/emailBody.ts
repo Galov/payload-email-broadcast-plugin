@@ -159,7 +159,13 @@ const normalizeEmailTables = (html: string) => {
 };
 
 const normalizeEmailRichTextHTML = (html: string) => {
-  return normalizeEmailTables(normalizeEmailImages(html));
+  return normalizeEmailTables(
+    normalizeEmailImages(
+      html
+        .replace(/<source\b[^>]*\/?>/gi, "")
+        .replace(/<\/?picture\b[^>]*>/gi, ""),
+    ),
+  );
 };
 
 const absolutizeHtmlUrls = ({
