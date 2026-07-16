@@ -68,7 +68,7 @@ export const renderEmailBodyHTML = async ({
   });
 
   return absolutizeHtmlUrls({
-    html: renderTemplate(html, data),
+    html: normalizeEmailRichTextHTML(renderTemplate(html, data)),
     siteUrl,
   });
 };
@@ -110,6 +110,56 @@ const makeAbsoluteUrl = ({
   }
 
   return `${normalizedSiteUrl.replace(/\/$/, "")}${url}`;
+};
+
+const mergeInlineStyles = ({
+  existingStyle,
+  requiredStyle,
+}: {
+  existingStyle?: string;
+  requiredStyle: string;
+}) => {
+  const normalizedExistingStyle = asNonEmptyString(existingStyle);
+
+  return normalizedExistingStyle
+    ? `${normalizedExistingStyle.replace(/;?\s*$/, ";")} ${requiredStyle}`
+    : requiredStyle;
+};
+
+const normalizeEmailImages = (html: string) => {
+  return html.replace(/<img\b([^>]*)>/gi, (match, rawAttributes: string) => {
+    const existingStyle = rawAttributes.match(/\sstyle=("|')([^"']*)\1/i)?.[2];
+    const cleanedAttributes = rawAttributes
+      .replace(/\s(width|height)=("|')[^"']*\2/gi, "")
+      .replace(/\sstyle=("|')[^"']*\1/i, "")
+      .replace(/\s*\/\s*$/, "");
+    const style = mergeInlineStyles({
+      existingStyle,
+      requiredStyle:
+        "display:block;width:100%;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;margin:18px auto;",
+    });
+
+    return `<img${cleanedAttributes} style="${style}" />`;
+  });
+};
+
+const normalizeEmailTables = (html: string) => {
+  return html.replace(/<table\b([^>]*)>/gi, (match, rawAttributes: string) => {
+    const existingStyle = rawAttributes.match(/\sstyle=("|')([^"']*)\1/i)?.[2];
+    const cleanedAttributes = rawAttributes
+      .replace(/\sstyle=("|')[^"']*\1/i, "")
+      .replace(/\s*\/\s*$/, "");
+    const style = mergeInlineStyles({
+      existingStyle,
+      requiredStyle: "width:100%;max-width:100%;",
+    });
+
+    return `<table${cleanedAttributes} style="${style}">`;
+  });
+};
+
+const normalizeEmailRichTextHTML = (html: string) => {
+  return normalizeEmailTables(normalizeEmailImages(html));
 };
 
 const absolutizeHtmlUrls = ({
@@ -220,7 +270,10 @@ export const renderEmailLayoutHTML = async ({
   return [
     '<!doctype html>',
     '<html>',
-    '<body style="margin:0;padding:0;background:' + backgroundColor + ';">',
+    '<head><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="x-apple-disable-message-reformatting"></head>',
+    '<body style="margin:0;padding:0;background:' +
+      backgroundColor +
+      ';-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">',
     previewText
       ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(previewText)}</div>`
       : "",
