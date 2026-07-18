@@ -63,8 +63,10 @@ emailBroadcastPlugin({
 
 - `Resend API key` не трябва да се пази в базата данни.
 - Реални broadcast имейли не трябва да се изпращат без изрично човешко потвърждение.
-- Реалното broadcast изпращане трябва да минава през Payload Jobs queue.
-- Всеки host проект трябва да има настроен jobs runner, който изпълнява queue `email-broadcasts`.
+- Реалните marketing/newsletter кампании трябва да минават през Resend Broadcast API.
+- Plugin-ът не трябва да изпраща реални broadcast получатели един по един чрез `resend.emails.send()`.
+- `resend.emails.send()` остава допустим само за единичен тестов имейл.
+- Payload Jobs queue и cron runner не трябва да са задължителна част от production инсталацията.
 
 ## Обхват на данните
 

@@ -2,6 +2,20 @@
 
 Този документ описва как се инсталира `payload-email-broadcast-plugin` в конкретен Payload сайт и кои настройки се правят веднага след това.
 
+## Важно: документът е в migration
+
+До `v0.1.8` plugin-ът имаше работещ batch sender през Payload Jobs и `resend.emails.send()`.
+
+Този модел вече е deprecated за реални marketing/newsletter кампании, защото Resend го третира като transactional sending.
+
+Новият production модел трябва да използва Resend Contacts, Segments и Broadcast API.
+
+Докато migration-ът не завърши:
+
+- `Изпрати тестов имейл` може да се използва;
+- групи, шаблони и preview могат да се използват;
+- реални broadcast кампании през стария batch sender не трябва да се пускат в production.
+
 ## 1. Инсталация
 
 Докато плъгинът не е публикуван в npm, инсталацията става от GitHub:
@@ -151,177 +165,23 @@ pnpm payload generate:importmap
 
 Без това бутоните в Payload admin може да не се заредят.
 
-## 7. Jobs runner
+## 7. Real broadcast sending
 
-Реалното broadcast изпращане използва Payload Jobs queue.
+Production broadcast sending е в migration.
 
-Плъгинът създава jobs, но конкретният сайт трябва да има jobs runner, който ги изпълнява.
+Старият модел с Payload Jobs runner и cron вече не е целевият модел. Той ще бъде заменен с Resend Contacts, Segments и Broadcast API.
 
-Ако няма jobs runner, админът ще може да натисне `Изпрати реално`, кампанията ще стане `queued`, но имейлите няма да тръгнат.
+След migration-а реалният flow трябва да бъде:
 
-Queue name:
+1. Админът създава кампания в Payload.
+2. Админът проверява recipient summary.
+3. Plugin-ът sync-ва получателите като Resend Contacts.
+4. Plugin-ът създава Resend Segment за кампанията.
+5. Plugin-ът създава Resend Broadcast draft към този segment.
+6. Админът потвърждава реално изпращане.
+7. Resend изпраща Broadcast-а.
 
-```txt
-email-broadcasts
-```
-
-Task:
-
-```txt
-prepareEmailBroadcast
-processEmailBroadcastBatch
-```
-
-### 7.1. Примерен runner endpoint за Next.js/Payload
-
-Най-универсалният подход е host проектът да има защитен endpoint, който стартира чакащите jobs.
-
-Примерен файл:
-
-```txt
-src/app/api/email-broadcast-jobs/run/route.ts
-```
-
-Примерен код:
-
-```ts
-import config from '@payload-config'
-import { getPayload } from 'payload'
-
-export async function POST(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  const expected = `Bearer ${process.env.EMAIL_JOBS_RUNNER_SECRET}`
-
-  if (!process.env.EMAIL_JOBS_RUNNER_SECRET || authHeader !== expected) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const payload = await getPayload({ config })
-
-  const result = await payload.jobs.run({
-    queue: 'email-broadcasts',
-    limit: 10,
-    sequential: true,
-  })
-
-  return Response.json({ ok: true, result })
-}
-```
-
-Добави secret в `.env`:
-
-```env
-EMAIL_JOBS_RUNNER_SECRET=some-long-random-string
-```
-
-`limit: 10` тук означава колко Payload jobs да се обработят при едно извикване на runner-а. Това не е брой имейли. Един plugin job обработва batch от получатели.
-
-`sequential: true` означава jobs да се изпълняват един след друг. Това е по-бавно, но по-безопасно за email sending.
-
-### 7.2. Локален тест
-
-Когато сайтът върви локално, например на `http://localhost:3000`, можеш ръчно да стартираш runner-а така:
-
-```bash
-curl -X POST http://localhost:3000/api/email-broadcast-jobs/run \
-  -H "Authorization: Bearer $EMAIL_JOBS_RUNNER_SECRET"
-```
-
-Практическият локален тест е:
-
-1. Създай малка тестова група.
-2. Създай кампания към тази група.
-3. Натисни `Изпрати реално`.
-4. Провери, че кампанията става `queued`.
-5. Провери, че в `Имейл логове` има записи със статус `pending`.
-6. Пусни `curl` командата.
-7. Провери, че логовете минават към `sent` или `failed`.
-
-Ако има повече чакащи jobs, пусни `curl` командата още веднъж.
-
-### 7.3. Vercel
-
-На Vercel няма постоянен Node процес. Затова runner-ът трябва да се стартира през Vercel Cron.
-
-Добави `EMAIL_JOBS_RUNNER_SECRET` във Vercel Environment Variables.
-
-Добави `vercel.json` в root-а на host проекта, ако проектът още няма такъв:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/email-broadcast-jobs/run",
-      "schedule": "*/5 * * * *"
-    }
-  ]
-}
-```
-
-Това извиква endpoint-а на всеки 5 минути.
-
-Важно: Vercel Cron няма автоматично да добави твоя `Authorization` header. Затова за Vercel има два практични варианта:
-
-- Да направиш endpoint-а да приема secret през query string, например `/api/email-broadcast-jobs/run?secret=...`.
-- Да използваш външен cron service, който може да изпраща custom headers.
-
-Ако използваш query string, endpoint-ът може да проверява така:
-
-```ts
-const url = new URL(request.url)
-const secret = url.searchParams.get('secret')
-
-if (!process.env.EMAIL_JOBS_RUNNER_SECRET || secret !== process.env.EMAIL_JOBS_RUNNER_SECRET) {
-  return Response.json({ error: 'Unauthorized' }, { status: 401 })
-}
-```
-
-Тогава cron path-ът във `vercel.json` става:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/email-broadcast-jobs/run?secret=some-long-random-string",
-      "schedule": "*/5 * * * *"
-    }
-  ]
-}
-```
-
-За публичен проект е по-добре да се документират и двата варианта, но да се препоръча външен cron с header, когато сигурността е по-важна.
-
-### 7.4. VPS / Hetzner
-
-На VPS има постоянна среда, затова настройката е по-гъвкава. Най-простият вариант е server cron, който извиква runner endpoint-а.
-
-Примерен cron:
-
-```cron
-*/5 * * * * curl -fsS -X POST https://example.com/api/email-broadcast-jobs/run -H "Authorization: Bearer some-long-random-string" >/dev/null 2>&1
-```
-
-Това стартира jobs runner-а на всеки 5 минути.
-
-Ако сайтът е зад reverse proxy и cron-ът се изпълнява на същия сървър, може да се използва локален адрес:
-
-```cron
-*/5 * * * * curl -fsS -X POST http://127.0.0.1:3000/api/email-broadcast-jobs/run -H "Authorization: Bearer some-long-random-string" >/dev/null 2>&1
-```
-
-По-късно може да се направи и постоянен worker процес, но cron е достатъчен за първа production версия.
-
-### 7.5. Как се проверява дали runner-ът работи
-
-След натискане на `Изпрати реално` трябва да видиш:
-
-- кампанията става `queued`;
-- в `Имейл логове` се появяват `pending` записи;
-- след стартиране на runner-а част от записите стават `sending`;
-- после стават `sent` или `failed`;
-- когато няма повече `pending`, кампанията става `sent` или `failed`.
-
-Тази настройка е задължителна за реални broadcast кампании.
+Докато тази migration не е завършена, не пускай production broadcast кампании през стария jobs/cron модел.
 
 ## 8. Първоначална настройка на съдържанието
 
@@ -354,7 +214,7 @@ Snapshot групата записва конкретните получател
 
 Тестовият имейл отива само до `Имейл за тестове` от `Имейл настройки`.
 
-Реалният бутон показва pre-send summary, изисква потвърждение и поставя кампанията в Jobs queue.
+Реалният бутон показва pre-send summary и изисква потвърждение. Production поведението му ще бъде мигрирано към Resend Broadcast API.
 
 Преди реално изпращане провери броя крайни получатели и пропуснатите записи.
 
@@ -364,9 +224,9 @@ Snapshot групата записва конкретните получател
 ИЗПРАТИ
 ```
 
-### 9.1. Dry-run тест без реални имейли
+### 9.1. Deprecated dry-run от стария модел
 
-За тест на queue flow с много получатели може временно да включиш `dryRun` в plugin config:
+До `v0.1.8` plugin-ът поддържаше `dryRun` за стария queue flow:
 
 ```ts
 emailBroadcastPlugin({
@@ -381,7 +241,9 @@ emailBroadcastPlugin({
 })
 ```
 
-При `dryRun: true` реалният broadcast flow създава logs, queue-ва jobs и маркира получателите като `sent`, но не изпраща имейли през Resend.
+При `dryRun: true` старият broadcast flow създава logs, queue-ва jobs и маркира получателите като `sent`, но не изпраща имейли през Resend.
+
+Този модел е deprecated за production кампании. След migration към Resend Broadcast API тестовият режим трябва да симулира sync към Contacts/Segment/Broadcast, а не batch изпращане през queue.
 
 Тестовият бутон `Изпрати тестов имейл` остава реален и продължава да праща към `Имейл за тестове`.
 
@@ -391,7 +253,7 @@ emailBroadcastPlugin({
 
 Не използвай реална production база за първи тест без копие или контролирана група.
 
-Не пускай реална кампания, ако jobs runner не е настроен и тестван.
+Не пускай реална кампания през стария jobs runner модел.
 
 Не слагай Resend API key в Payload admin.
 

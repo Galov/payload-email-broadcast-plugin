@@ -18,57 +18,68 @@ Codex трябва:
 - как се проверява резултатът;
 - дали проверките минават.
 
-## Фаза 1 — Project skeleton
+## Исторически статус
 
-Цел: да се създаде базова npm-style TypeScript структура за Payload v3 plugin.
+Фази 1-11 вече създадоха работещ Payload plugin с:
+
+- collections/global;
+- шаблони;
+- тестово изпращане;
+- rich text email renderer;
+- header/footer настройки;
+- recipient preview;
+- groups и snapshot groups по критерии;
+- стар Payload Jobs based batch sender.
+
+Старият batch sender е deprecated, защото използва `resend.emails.send()` за реални кампании. Това кара Resend да ги третира като transactional sending.
+
+Новият план започва от Фаза 12 и мигрира реалното изпращане към Resend Broadcast API.
+
+## Фаза 12 — Resend Broadcast architecture migration docs
+
+Цел: постоянната документация да посочи Resend Broadcast API като единствен валиден модел за реални кампании.
 
 Задачи:
 
-- `package.json`
-- `tsconfig.json`
-- `README.md`
-- `src/index.ts`
-- `src/collections/`
-- `src/globals/`
-- `src/endpoints/`
-- `src/providers/`
-- `src/utils/`
+- обновяване на `.ai/ARCHITECTURE.md`;
+- обновяване на `.ai/DECISIONS.md`;
+- обновяване на `.ai/TODO.md`;
+- отбелязване на стария Payload Jobs batch sender като deprecated;
+- отбелязване, че cron/job runner вече не е целевият production модел;
+- отбелязване, че `emails.send()` остава само за тестови имейли и евентуални service/transactional email-и.
+
+Проверка:
+
+- документацията не трябва да си противоречи;
+- следващите фази трябва да са изпълними без неяснота.
+
+Стоп условие: спиране и отчет след завършване на фазата.
+
+## Фаза 13 — Resend API provider layer
+
+Цел: да се добави provider слой за новия Resend модел.
+
+Задачи:
+
+- `createResendContact`;
+- `updateResendContact`;
+- `createResendSegment`;
+- `addResendContactToSegment`;
+- `createResendBroadcast`;
+- `sendResendBroadcast`;
+- нормализирано error handling;
+- typed резултати с Resend IDs.
+
+Решение:
+
+- Ако текущият `resend` SDK поддържа нужните методи стабилно, може да се използва SDK.
+- Ако SDK типизациите са непълни или несигурни, provider-ът трябва да използва директен `fetch` към Resend REST API.
 
 Ограничения:
 
-- Без Resend sending implementation.
-- Без интеграция в реален Payload проект.
-- Без сложна бизнес логика.
-- Пакетът трябва да се build-ва с TypeScript.
-
-Проверка:
-
-```bash
-npm install
-npm run build
-```
-
-Стоп условие: спиране и отчет след завършване на фазата.
-
-## Фаза 2 — Plugin entry point
-
-Цел: да се създаде базовата `emailBroadcastPlugin()` функция.
-
-Задачи:
-
-- Имплементация на `emailBroadcastPlugin(options)(config)`.
-- Typed options за:
-  - `usersCollection`
-  - `recipientFields.email`
-  - `recipientFields.firstName`
-  - `recipientFields.lastName`
-  - `subscriptionField`
-  - `unsubscribeTokenField`
-  - `resendApiKey`
-
-Ограничение:
-
-- На този етап plugin-ът може да връща `config` непроменен или с placeholder collections.
+- Без промяна на admin UI;
+- без реално изпращане;
+- без премахване на стария flow в тази фаза.
 
 Проверка:
 
@@ -76,231 +87,180 @@ npm run build
 npm run build
 ```
 
-Стоп условие: спиране и отчет след завършване на фазата.
+Стоп условие: спиране и отчет.
 
-## Фаза 3 — Collections and Global skeleton
+## Фаза 14 — Broadcast data model migration
 
-Цел: да се добавят административните структури в Payload.
+Цел: `Email Broadcasts` и `Email Logs` да могат да пазят Resend Broadcast state.
 
 Задачи:
 
-- Skeleton за `Email Broadcasts`
-- Skeleton за `Email Templates`
-- Skeleton за `Email Logs`
-- Skeleton за `Email Settings` Global
-- Добавяне към plugin config
+- добавяне на `resendSegmentId`;
+- добавяне на `resendBroadcastId`;
+- добавяне на `resendBroadcastStatus`;
+- добавяне на `resendLastSyncedAt`;
+- добавяне на `resendLastError`;
+- добавяне на sync counters: `syncedCount`, `skippedCount`, `syncFailedCount`;
+- преработка на `Email Logs` към sync/audit статуса: `pending_sync | synced | skipped | failed`.
+
+Ограничения:
+
+- Без реално изпращане;
+- без автоматично sync-ване от hooks;
+- backward compatible полетата могат временно да останат.
 
 Проверка:
 
-```bash
-npm run build
-```
+- `npm run build`;
+- локална инсталация в тестов Payload проект;
+- admin формите се отварят без runtime errors.
 
-Ако има тестов Payload проект:
+Стоп условие: спиране и отчет.
 
-- plugin-ът се инсталира локално;
-- admin секциите трябва да се виждат.
+## Фаза 15 — Recipient to Resend Contact mapping
 
-Стоп условие: спиране и отчет след завършване на фазата.
-
-## Фаза 4 — Local integration test
-
-Цел: да се потвърди локална инсталация чрез file dependency.
+Цел: Payload recipient данните да се превръщат в Resend Contact payload.
 
 Задачи:
 
-- Инсталиране в target Payload проект чрез:
+- mapping на `recipientFields.email`;
+- mapping на `recipientFields.firstName`;
+- mapping на `recipientFields.lastName`;
+- mapping на `subscriptionField` към Resend `unsubscribed`;
+- optional custom properties config;
+- dedupe по email;
+- skip на recipients без email.
 
-```json
-"payload-email-broadcast-plugin": "file:../payload-email-broadcast-plugin"
-```
+Решение:
 
-- Регистриране в `payload.config.ts`
+- Resend Contact е глобален по email.
+- Plugin-ът трябва да може да update-ва contact по email.
+- Segment membership трябва да се добавя отделно.
 
 Проверка:
 
-- Payload проектът build-ва
-- Payload admin се отваря
-- Plugin collections/global се виждат
-- Няма runtime errors
+- unit-style helper тестове или малък script;
+- `npm run build`.
 
-Стоп условие: спиране и отчет след завършване на фазата.
+Стоп условие: спиране и отчет.
 
-## Фаза 5 — Recipient preview
+## Фаза 16 — Segment sync flow
 
-Цел: да се добави preview логика без реално изпращане.
+Цел: избраната Payload аудитория да се материализира като Resend Segment.
 
 Задачи:
 
-- броене на total candidate recipients;
-- броене на recipients without email;
-- броене на duplicate emails;
-- броене на unsubscribed recipients;
-- броене на final recipients.
+- endpoint/action `sync audience`;
+- създаване на Resend Segment за кампанията;
+- sync/update на всеки Resend Contact;
+- add contact to segment;
+- записване на sync audit logs;
+- idempotency: повторен sync не трябва да дублира или чупи кампанията;
+- dry-run mode за sync без реални Resend write calls.
+
+Ограничения:
+
+- Без `send` на Broadcast;
+- без full-list production sync без explicit approval.
+
+Проверка:
+
+- dry-run sync към малка група;
+- реален sync към малка тестова група в Resend;
+- Resend dashboard показва contacts и segment.
+
+Стоп условие: спиране и отчет.
+
+## Фаза 17 — Broadcast creation
+
+Цел: от Payload кампания да се създаде Resend Broadcast draft.
+
+Задачи:
+
+- rendering на subject/html/text за Resend Broadcast;
+- mapping на template variables към Resend syntax;
+- използване на `{{{RESEND_UNSUBSCRIBE_URL}}}`;
+- create broadcast с `segmentId`;
+- записване на `resendBroadcastId`;
+- admin feedback при успех/грешка.
+
+Ограничения:
+
+- По подразбиране да се създава draft, не да се изпраща веднага;
+- `send: true` да се използва само след отделно потвърждение.
+
+Проверка:
+
+- създаден draft Broadcast в Resend;
+- HTML изглежда коректно;
+- unsubscribe placeholder е Resend placeholder, не локален fake URL.
+
+Стоп условие: спиране и отчет.
+
+## Фаза 18 — Broadcast send/schedule
+
+Цел: реалното изпращане да се задейства чрез Resend Broadcast API.
+
+Задачи:
+
+- real send button да изисква summary и потвърждение `ИЗПРАТИ`;
+- проверка, че има `resendSegmentId`;
+- проверка, че има `resendBroadcastId`;
+- send now чрез Resend Broadcast API;
+- по-късно optional schedule;
+- update на Payload campaign status.
+
+Ограничения:
+
+- Без стария Payload Jobs runner;
+- без per-recipient `emails.send`;
+- без режим `all` в production преди отделно одобрение.
+
+Проверка:
+
+- реален Broadcast към малка тестова група;
+- Resend отчита изпращането като Broadcast;
+- получателите получават имейла;
+- unsubscribe link е Resend link.
+
+Стоп условие: спиране и отчет.
+
+## Фаза 19 — Remove/deprecate old batch sender
+
+Цел: старият batch sender да не може да бъде използван случайно за marketing campaigns.
+
+Задачи:
+
+- премахване или hard-disable на `processEmailBroadcastBatch` за real broadcast;
+- премахване на cron/job runner instructions от актуалната installation документация;
+- ясно разделяне:
+  - test email: `emails.send`;
+  - real broadcast: Broadcast API.
 
 Проверка:
 
 - build;
-- preview тест срещу реалната users/members collection, ако е налична.
+- няма admin път, който праща campaign recipients през `emails.send`.
 
-Стоп условие: спиране и отчет след завършване на фазата.
+Стоп условие: спиране и отчет.
 
-## Фаза 6 — Template rendering
+## Фаза 20 — Documentation and release
 
-Цел: да се добави базова поддръжка за template variables.
-
-Задачи:
-
-- подмяна на:
-  - `{{ firstName }}`
-  - `{{ lastName }}`
-  - `{{ email }}`
-  - `{{ unsubscribeUrl }}`
-
-Правило:
-
-- Липсващи стойности не трябва да чупят render-а.
-
-Проверка:
-
-- simple unit-style checks или малък local test script;
-- `npm run build`
-
-Стоп условие: спиране и отчет след завършване на фазата.
-
-## Фаза 7 — Resend provider and test email
-
-Цел: да се изпрати единичен тестов имейл през Resend.
+Цел: новият модел да е описан като production-ready installation guide.
 
 Задачи:
 
-- Resend provider
-- `Send Test` endpoint/action
-
-Ограничения:
-
-- Изпращане само към конфигурирания test recipient
-- Без изпращане към реални recipients
-- Без broadcast send
-
-Проверка:
-
-- build минава;
-- получен е единичен тестов имейл;
-- не е изпратен имейл към пълния списък.
-
-Стоп условие: спиране и отчет след завършване на фазата.
-
-## Фаза 8 — Unsubscribe support
-
-Цел: да се добави базова unsubscribe функционалност.
-
-Задачи:
-
-- unsubscribe token handling;
-- newsletter subscription fields или одобрена алтернатива;
-- public unsubscribe endpoint.
+- пренаписване на `INSTALLATION.md`;
+- migration notes от `v0.1.8`;
+- списък с Resend prerequisites;
+- setup на API key;
+- setup на verified sender/domain;
+- setup на първи тестов Segment;
+- release tag.
 
 Проверка:
 
-- тест с един user;
-- user става unsubscribed;
-- timestamp се записва;
-- endpoint връща проста confirmation страница.
+- документацията може да се следва от админ без дълбоки технически знания;
+- няма останали инструкции за cron като задължителна част от production install.
 
-Стоп условие: спиране и отчет след завършване на фазата.
-
-## Фаза 9 — Broadcast queue foundation
-
-Цел: да се замени директното real broadcast изпращане с надежден Payload Jobs модел.
-
-Задачи:
-
-- регистриране на Payload Jobs task `processEmailBroadcastBatch`;
-- регистриране на Payload Jobs task `prepareEmailBroadcast`;
-- използване на queue `email-broadcasts`;
-- добавяне на `queued` статус за кампания;
-- добавяне на `pending`, `sending`, `sent`, `failed`, `skipped` статуси за `email-logs`;
-- промяна на real send endpoint-а така, че да queue-ва prepare job и да не върши тежка работа в HTTP заявката;
-- batch processing с начален batch size `25`;
-- retry настройка с начален лимит `2`;
-- защита срещу повторно изпращане към вече `sent` получател;
-- обновяване на campaign counters след всеки batch.
-
-Ограничения:
-
-- Без auto-send от hooks
-- Само след изрично admin действие
-- Без изпращане към пълен production list преди отделно човешко одобрение
-- Без commit/tag/push без изрична инструкция
-
-Проверка:
-
-- build минава;
-- real send към малка тестова група queue-ва job;
-- prepare job създава logs като `pending`;
-- task обработва batch и маркира logs като `sent` или `failed`;
-- повторно стартиране не изпраща повторно към `sent` получатели;
-- кампанията показва коректен progress.
-
-Стоп условие: спиране и отчет след завършване на фазата.
-
-## Фаза 10 — Large broadcast readiness
-
-Цел: да се подготви безопасно изпращане към големи групи и режим `all`.
-
-Задачи:
-
-- разрешаване на големи recipient sets само след стабилен queue flow;
-- потвърждение, че големите recipient sets минават през Jobs queue след explicit admin confirmation;
-- проверка на batch size спрямо Resend и hosting средата;
-- настройка/описание как jobs се стартират на Vercel;
-- настройка/описание как jobs се стартират на Hetzner;
-- ясна admin индикация за progress и крайно състояние;
-- документиране на recovery поведение при прекъснат процес.
-
-Преди първо голямо изпращане трябва да се потвърдят:
-
-- sender domain
-- from email
-- reply-to email
-- recipient count
-- test email rendering
-- logs
-- Resend limits
-- Payload Jobs runner/cron
-
-Проверка:
-
-- тест с малка група;
-- тест с по-голяма контролирана група;
-- пълно изпращане само след изрично human approval.
-
-Стоп условие: спиране и изчакване за одобрение преди full-list broadcast.
-
-## Фаза 11 — Advanced recipient groups
-
-Цел: да се добави по-софистицирано създаване и поддръжка на групи получатели.
-
-Задачи:
-
-- създаване на snapshot група по критерии;
-- preview на броя получатели преди материализиране на групата;
-- запазване на конкретните получатели в групата;
-- запазване на критериите за проследимост;
-- автоматично вземане на label/type/options от recipient collection config, когато е възможно;
-- документиране на разликата между статични snapshot групи и бъдещи dynamic групи.
-
-Отложени задачи:
-
-- bulk добавяне към вече съществуваща група;
-- live dynamic групи, които се преизчисляват при всяко изпращане;
-- relationship/nested/array criteria builder.
-
-Проверка:
-
-- група се създава по избран критерий;
-- админът вижда preview преди запис;
-- real send към група използва същия Payload Jobs механизъм.
-
-Стоп условие: спиране и отчет след завършване на фазата.
+Стоп условие: release само след изрична инструкция.

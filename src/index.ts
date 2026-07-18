@@ -21,6 +21,33 @@ export {
   renderEmailBodyHTML,
   renderEmailLayoutHTML,
 } from "./utils/emailBody.js";
+export {
+  addResendContactToSegment,
+  createResendBroadcast,
+  createResendContact,
+  createResendSegment,
+  ResendProviderError,
+  sendResendBroadcast,
+  sendWithResend,
+  updateResendContact,
+} from "./providers/resend.js";
+export type {
+  AddResendContactToSegmentArgs,
+  AddResendContactToSegmentResult,
+  CreateResendBroadcastArgs,
+  CreateResendBroadcastResult,
+  CreateResendContactArgs,
+  CreateResendContactResult,
+  CreateResendSegmentArgs,
+  CreateResendSegmentResult,
+  ResendContactProperties,
+  SendResendBroadcastArgs,
+  SendResendBroadcastResult,
+  SendWithResendArgs,
+  SendWithResendResult,
+  UpdateResendContactArgs,
+  UpdateResendContactResult,
+} from "./providers/resend.js";
 export type {
   RecipientPreviewCandidate,
   RecipientPreviewResult,
