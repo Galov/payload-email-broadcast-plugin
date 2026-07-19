@@ -8,7 +8,8 @@ export const emailLogsCollection: CollectionConfig = {
   },
   admin: {
     group: "Кампании",
-    description: "История на изпращането по отделен получател.",
+    description:
+      "История на sync-а и изпращането по отделен получател. Старите send статуси остават временно за backward compatibility.",
   },
   fields: [
     {
@@ -26,6 +27,8 @@ export const emailLogsCollection: CollectionConfig = {
       type: "select",
       required: true,
       options: [
+        { label: "Чака sync", value: "pending_sync" },
+        { label: "Синхронизиран", value: "synced" },
         { label: "Чака", value: "pending" },
         { label: "Изпраща се", value: "sending" },
         { label: "Изпратен", value: "sent" },
@@ -34,6 +37,30 @@ export const emailLogsCollection: CollectionConfig = {
       ],
     },
     { name: "error", label: "Грешка", type: "textarea" },
+    {
+      name: "resendContactId",
+      label: "Resend Contact ID",
+      type: "text",
+      admin: { readOnly: true },
+    },
+    {
+      name: "resendSegmentId",
+      label: "Resend Segment ID",
+      type: "text",
+      admin: { readOnly: true },
+    },
+    {
+      name: "resendBroadcastId",
+      label: "Resend Broadcast ID",
+      type: "text",
+      admin: { readOnly: true },
+    },
+    {
+      name: "syncedAt",
+      label: "Синхронизиран на",
+      type: "date",
+      admin: { readOnly: true },
+    },
     { name: "sentAt", label: "Изпратено на", type: "date" },
     { name: "providerMessageId", label: "ID от доставчика", type: "text" },
   ],

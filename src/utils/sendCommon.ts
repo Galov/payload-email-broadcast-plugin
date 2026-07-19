@@ -177,6 +177,7 @@ const mapRecipientDocToCandidate = ({
   } = config;
 
   return {
+    ...doc,
     email: doc[recipientEmailField],
     id:
       typeof doc.id === "number" || typeof doc.id === "string"

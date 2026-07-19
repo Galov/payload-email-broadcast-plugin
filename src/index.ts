@@ -9,12 +9,14 @@ import {
   resolveSnapshotFilterFields,
   type EmailBroadcastGroupFilterField,
 } from "./utils/groupFilters.js";
+import type { ResendContactPropertyMapping } from "./utils/resendContacts.js";
 import type { Config, Plugin } from "payload";
 
 export {
   buildRecipientPreview,
   loadRecipientPreview,
 } from "./utils/recipients.js";
+export { buildResendContactSyncPlan } from "./utils/resendContacts.js";
 export { renderTemplate } from "./utils/renderTemplate.js";
 export {
   normalizeEmailBodyValue,
@@ -54,6 +56,15 @@ export type {
   RecipientPreviewSummary,
   RecipientPreviewType,
 } from "./utils/recipients.js";
+export type {
+  BuildResendContactSyncPlanArgs,
+  BuildResendContactSyncPlanResult,
+  ResendContactFieldMapping,
+  ResendContactPropertyMapping,
+  ResendContactRecipientDoc,
+  ResendContactSyncContact,
+  ResendContactSyncSkippedRecipient,
+} from "./utils/resendContacts.js";
 export type { RenderTemplateData } from "./utils/renderTemplate.js";
 
 export type EmailBroadcastRecipientFields = {
@@ -69,6 +80,7 @@ export type EmailBroadcastPluginOptions = {
   unsubscribeTokenField?: string;
   mediaCollection?: string;
   resendApiKey: string;
+  resendContactProperties?: ResendContactPropertyMapping[];
   siteUrl?: string;
   defaultFromEmail?: string;
   defaultFromName?: string;
@@ -106,6 +118,7 @@ export const emailBroadcastPlugin = (
           recipientFirstNameField: options.recipientFields.firstName,
           recipientLastNameField: options.recipientFields.lastName,
           resendApiKey: options.resendApiKey,
+          resendContactProperties: options.resendContactProperties,
           siteUrl: options.siteUrl,
           subscriptionField: options.subscriptionField,
         }),

@@ -7,8 +7,10 @@ import type {
 import { createSendBroadcastEndpoint } from "../endpoints/sendBroadcast.js";
 import { createSendSummaryEndpoint } from "../endpoints/sendSummary.js";
 import { createSendTestEndpoint } from "../endpoints/sendTest.js";
+import { createSyncAudienceEndpoint } from "../endpoints/syncAudience.js";
 import { createEmailRichTextEditor } from "../utils/emailEditor.js";
 import { normalizeEmailBodyValue } from "../utils/emailBody.js";
+import type { ResendContactPropertyMapping } from "../utils/resendContacts.js";
 import {
   buildRecipientPreview,
   loadRecipientPreview,
@@ -31,6 +33,7 @@ type CreateEmailBroadcastsCollectionArgs = {
   recipientFirstNameField?: string;
   recipientLastNameField?: string;
   resendApiKey: string;
+  resendContactProperties?: ResendContactPropertyMapping[];
   siteUrl?: string;
   subscriptionField?: string;
 };
@@ -46,6 +49,7 @@ export const createEmailBroadcastsCollection = ({
   recipientFirstNameField,
   recipientLastNameField,
   resendApiKey,
+  resendContactProperties,
   siteUrl,
   subscriptionField,
 }: CreateEmailBroadcastsCollectionArgs): CollectionConfig => {
@@ -288,6 +292,20 @@ export const createEmailBroadcastsCollection = ({
         }).handler,
       },
       {
+        path: "/:id/sync-audience",
+        method: "post",
+        handler: createSyncAudienceEndpoint({
+          dryRun,
+          recipientEmailField,
+          recipientFirstNameField,
+          recipientLastNameField,
+          recipientsCollection,
+          resendApiKey,
+          resendContactProperties,
+          subscriptionField,
+        }).handler,
+      },
+      {
         path: "/:id/send-test",
         method: "post",
         handler: createSendTestEndpoint({
@@ -350,6 +368,9 @@ export const createEmailBroadcastsCollection = ({
         options: [
           { label: "Чернова", value: "draft" },
           { label: "Готова", value: "ready" },
+          { label: "Подготвя се", value: "preparing" },
+          { label: "Синхронизирана в Resend", value: "synced" },
+          { label: "Насрочена", value: "scheduled" },
           { label: "В опашката", value: "queued" },
           { label: "Изпраща се", value: "sending" },
           { label: "Изпратена", value: "sent" },
@@ -470,6 +491,85 @@ export const createEmailBroadcastsCollection = ({
         type: "number",
         defaultValue: 0,
         admin: { readOnly: true },
+      },
+      {
+        name: "skippedCount",
+        label: "Пропуснати",
+        type: "number",
+        defaultValue: 0,
+        admin: {
+          readOnly: true,
+          description:
+            "Колко получатели са пропуснати при подготовката или sync-а.",
+        },
+      },
+      {
+        name: "syncedCount",
+        label: "Синхронизирани в Resend",
+        type: "number",
+        defaultValue: 0,
+        admin: {
+          readOnly: true,
+          description:
+            "Колко получатели са синхронизирани като Resend Contacts.",
+        },
+      },
+      {
+        name: "syncFailedCount",
+        label: "Неуспешни sync записи",
+        type: "number",
+        defaultValue: 0,
+        admin: {
+          readOnly: true,
+          description:
+            "Колко получатели не са синхронизирани успешно към Resend.",
+        },
+      },
+      {
+        name: "resendSegmentId",
+        label: "Resend Segment ID",
+        type: "text",
+        admin: {
+          readOnly: true,
+          description:
+            "Segment-ът в Resend, към който ще бъде вързан Broadcast-ът.",
+        },
+      },
+      {
+        name: "resendBroadcastId",
+        label: "Resend Broadcast ID",
+        type: "text",
+        admin: {
+          readOnly: true,
+          description:
+            "Broadcast-ът в Resend, създаден от тази Payload кампания.",
+        },
+      },
+      {
+        name: "resendBroadcastStatus",
+        label: "Resend Broadcast статус",
+        type: "text",
+        admin: {
+          readOnly: true,
+          description:
+            "Статусът, върнат от Resend за свързания Broadcast.",
+        },
+      },
+      {
+        name: "resendLastSyncedAt",
+        label: "Последен Resend sync на",
+        type: "date",
+        admin: {
+          readOnly: true,
+        },
+      },
+      {
+        name: "resendLastError",
+        label: "Последна Resend грешка",
+        type: "textarea",
+        admin: {
+          readOnly: true,
+        },
       },
       {
         name: "lastTestEmailSentAt",

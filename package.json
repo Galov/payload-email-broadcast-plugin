@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "check:resend-contacts": "npm run build && node scripts/check-resend-contacts.mjs",
     "check:render-template": "node scripts/check-render-template.mjs",
     "prepare": "npm run build"
   },
