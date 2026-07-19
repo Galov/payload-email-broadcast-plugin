@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildResendContactSyncPlan } from "../dist/index.js";
+import { buildResendContactSyncPlan } from "../dist/utils/resendContacts.js";
 
 const result = buildResendContactSyncPlan({
   fields: {

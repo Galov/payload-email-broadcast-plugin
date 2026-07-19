@@ -33,7 +33,9 @@ Codex трябва:
 
 Старият batch sender е deprecated, защото използва `resend.emails.send()` за реални кампании. Това кара Resend да ги третира като transactional sending.
 
-Новият план започва от Фаза 12 и мигрира реалното изпращане към Resend Broadcast API.
+Фази 12-20 мигрират реалното изпращане към Resend Broadcast API.
+
+Към версия `1.0.0` основният Broadcast flow е реализиран: sync на получатели, създаване на Broadcast чернова и реално изпращане през Resend Broadcast API. Release tag се създава само след изрична инструкция.
 
 ## Фаза 12 — Resend Broadcast architecture migration docs
 
@@ -242,7 +244,7 @@ npm run build
 - build;
 - няма admin път, който праща campaign recipients през `emails.send`.
 
-Стоп условие: спиране и отчет.
+Статус: изпълнена за `v1.0.0`. Старият endpoint, jobs tasks и batch helper-и са премахнати от `src`.
 
 ## Фаза 20 — Documentation and release
 
@@ -263,4 +265,4 @@ npm run build
 - документацията може да се следва от админ без дълбоки технически знания;
 - няма останали инструкции за cron като задължителна част от production install.
 
-Стоп условие: release само след изрична инструкция.
+Статус: installation документацията е обновена за `v1.0.0`. Release tag се прави само след изрична инструкция.

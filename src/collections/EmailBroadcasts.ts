@@ -4,7 +4,8 @@ import type {
   CollectionBeforeValidateHook,
   CollectionConfig,
 } from "payload";
-import { createSendBroadcastEndpoint } from "../endpoints/sendBroadcast.js";
+import { createBroadcastDraftEndpoint } from "../endpoints/createBroadcastDraft.js";
+import { createSendResendBroadcastEndpoint } from "../endpoints/sendResendBroadcast.js";
 import { createSendSummaryEndpoint } from "../endpoints/sendSummary.js";
 import { createSendTestEndpoint } from "../endpoints/sendTest.js";
 import { createSyncAudienceEndpoint } from "../endpoints/syncAudience.js";
@@ -26,7 +27,6 @@ type CreateEmailBroadcastsCollectionArgs = {
   defaultFromEmail?: string;
   defaultFromName?: string;
   defaultReplyTo?: string;
-  dryRun?: boolean;
   mediaCollection?: string;
   recipientsCollection: string;
   recipientEmailField: string;
@@ -42,7 +42,6 @@ export const createEmailBroadcastsCollection = ({
   defaultFromEmail,
   defaultFromName,
   defaultReplyTo,
-  dryRun,
   mediaCollection = "media",
   recipientsCollection,
   recipientEmailField,
@@ -263,13 +262,12 @@ export const createEmailBroadcastsCollection = ({
     },
     endpoints: [
       {
-        path: "/:id/send-broadcast",
+        path: "/:id/create-broadcast-draft",
         method: "post",
-        handler: createSendBroadcastEndpoint({
+        handler: createBroadcastDraftEndpoint({
           defaultFromEmail,
           defaultFromName,
           defaultReplyTo,
-          dryRun,
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
@@ -280,10 +278,16 @@ export const createEmailBroadcastsCollection = ({
         }).handler,
       },
       {
+        path: "/:id/send-resend-broadcast",
+        method: "post",
+        handler: createSendResendBroadcastEndpoint({
+          resendApiKey,
+        }).handler,
+      },
+      {
         path: "/:id/send-summary",
         method: "get",
         handler: createSendSummaryEndpoint({
-          dryRun,
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
@@ -295,7 +299,6 @@ export const createEmailBroadcastsCollection = ({
         path: "/:id/sync-audience",
         method: "post",
         handler: createSyncAudienceEndpoint({
-          dryRun,
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
@@ -371,8 +374,6 @@ export const createEmailBroadcastsCollection = ({
           { label: "Подготвя се", value: "preparing" },
           { label: "Синхронизирана в Resend", value: "synced" },
           { label: "Насрочена", value: "scheduled" },
-          { label: "В опашката", value: "queued" },
-          { label: "Изпраща се", value: "sending" },
           { label: "Изпратена", value: "sent" },
           { label: "Неуспешна", value: "failed" },
         ],
@@ -474,20 +475,6 @@ export const createEmailBroadcastsCollection = ({
       {
         name: "recipientCount",
         label: "Крайни получатели",
-        type: "number",
-        defaultValue: 0,
-        admin: { readOnly: true },
-      },
-      {
-        name: "deliveredCount",
-        label: "Успешно доставени",
-        type: "number",
-        defaultValue: 0,
-        admin: { readOnly: true },
-      },
-      {
-        name: "failedCount",
-        label: "Неуспешни",
         type: "number",
         defaultValue: 0,
         admin: { readOnly: true },

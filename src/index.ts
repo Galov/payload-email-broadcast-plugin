@@ -3,8 +3,6 @@ import { emailLogsCollection } from "./collections/EmailLogs.js";
 import { createEmailRecipientGroupsCollection } from "./collections/EmailRecipientGroups.js";
 import { createEmailTemplatesCollection } from "./collections/EmailTemplates.js";
 import { emailSettingsGlobal } from "./globals/EmailSettings.js";
-import { createPrepareEmailBroadcastTask } from "./jobs/prepareBroadcast.js";
-import { createProcessEmailBroadcastBatchTask } from "./jobs/processBroadcastBatch.js";
 import {
   resolveSnapshotFilterFields,
   type EmailBroadcastGroupFilterField,
@@ -17,6 +15,11 @@ export {
   loadRecipientPreview,
 } from "./utils/recipients.js";
 export { buildResendContactSyncPlan } from "./utils/resendContacts.js";
+export {
+  renderResendBroadcastContent,
+  RESEND_UNSUBSCRIBE_URL_PLACEHOLDER,
+  resendBroadcastRenderData,
+} from "./utils/resendBroadcast.js";
 export { renderTemplate } from "./utils/renderTemplate.js";
 export {
   normalizeEmailBodyValue,
@@ -65,6 +68,10 @@ export type {
   ResendContactSyncContact,
   ResendContactSyncSkippedRecipient,
 } from "./utils/resendContacts.js";
+export type {
+  RenderResendBroadcastContentArgs,
+  RenderResendBroadcastContentResult,
+} from "./utils/resendBroadcast.js";
 export type { RenderTemplateData } from "./utils/renderTemplate.js";
 
 export type EmailBroadcastRecipientFields = {
@@ -74,10 +81,10 @@ export type EmailBroadcastRecipientFields = {
 };
 
 export type EmailBroadcastPluginOptions = {
-  usersCollection: string;
+  recipientsCollection?: string;
+  usersCollection?: string;
   recipientFields: EmailBroadcastRecipientFields;
   subscriptionField?: string;
-  unsubscribeTokenField?: string;
   mediaCollection?: string;
   resendApiKey: string;
   resendContactProperties?: ResendContactPropertyMapping[];
@@ -85,7 +92,6 @@ export type EmailBroadcastPluginOptions = {
   defaultFromEmail?: string;
   defaultFromName?: string;
   defaultReplyTo?: string;
-  dryRun?: boolean;
   groupFilterFields?: EmailBroadcastGroupFilterField[];
 };
 
@@ -95,8 +101,17 @@ export const emailBroadcastPlugin = (
   options: EmailBroadcastPluginOptions,
 ): EmailBroadcastPlugin => {
   return (config: Config): Config => {
+    const recipientCollectionSlug =
+      options.recipientsCollection ?? options.usersCollection;
+
+    if (!recipientCollectionSlug) {
+      throw new Error(
+        "emailBroadcastPlugin requires recipientsCollection or usersCollection.",
+      );
+    }
+
     const recipientsCollection = config.collections?.find(
-      (collection) => collection.slug === options.usersCollection,
+      (collection) => collection.slug === recipientCollectionSlug,
     );
     const groupFilterFields = resolveSnapshotFilterFields({
       configuredFields: options.groupFilterFields,
@@ -111,9 +126,8 @@ export const emailBroadcastPlugin = (
           defaultFromEmail: options.defaultFromEmail,
           defaultFromName: options.defaultFromName,
           defaultReplyTo: options.defaultReplyTo,
-          dryRun: options.dryRun,
           mediaCollection: options.mediaCollection,
-          recipientsCollection: options.usersCollection,
+          recipientsCollection: recipientCollectionSlug,
           recipientEmailField: options.recipientFields.email,
           recipientFirstNameField: options.recipientFields.firstName,
           recipientLastNameField: options.recipientFields.lastName,
@@ -124,44 +138,12 @@ export const emailBroadcastPlugin = (
         }),
         createEmailTemplatesCollection(options.mediaCollection),
         createEmailRecipientGroupsCollection(
-          options.usersCollection,
+          recipientCollectionSlug,
           groupFilterFields,
         ),
         emailLogsCollection,
       ],
       globals: [...(config.globals ?? []), emailSettingsGlobal],
-      jobs: {
-        ...config.jobs,
-        tasks: [
-          ...(config.jobs?.tasks ?? []),
-          createPrepareEmailBroadcastTask({
-            defaultFromEmail: options.defaultFromEmail,
-            defaultFromName: options.defaultFromName,
-            defaultReplyTo: options.defaultReplyTo,
-            dryRun: options.dryRun,
-            recipientEmailField: options.recipientFields.email,
-            recipientFirstNameField: options.recipientFields.firstName,
-            recipientLastNameField: options.recipientFields.lastName,
-            recipientsCollection: options.usersCollection,
-            resendApiKey: options.resendApiKey,
-            siteUrl: options.siteUrl,
-            subscriptionField: options.subscriptionField,
-          }),
-          createProcessEmailBroadcastBatchTask({
-            defaultFromEmail: options.defaultFromEmail,
-            defaultFromName: options.defaultFromName,
-            defaultReplyTo: options.defaultReplyTo,
-            dryRun: options.dryRun,
-            recipientEmailField: options.recipientFields.email,
-            recipientFirstNameField: options.recipientFields.firstName,
-            recipientLastNameField: options.recipientFields.lastName,
-            recipientsCollection: options.usersCollection,
-            resendApiKey: options.resendApiKey,
-            siteUrl: options.siteUrl,
-            subscriptionField: options.subscriptionField,
-          }),
-        ],
-      },
     };
   };
 };

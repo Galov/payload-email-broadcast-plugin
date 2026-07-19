@@ -1,121 +1,141 @@
 # Installation and Site Configuration
 
-Този документ описва как се инсталира `payload-email-broadcast-plugin` в конкретен Payload сайт и кои настройки се правят веднага след това.
+Този документ описва как се инсталира `payload-email-broadcast-plugin` в Payload v3 сайт и как се настройва за конкретна recipient collection.
 
-## Важно: документът е в migration
+Версия `1.0.0` използва production модел с Resend Contacts, Segments и Broadcasts. Реалните кампании не се изпращат като отделни transactional имейли.
 
-До `v0.1.8` plugin-ът имаше работещ batch sender през Payload Jobs и `resend.emails.send()`.
+## 1. Преди инсталация
 
-Този модел вече е deprecated за реални marketing/newsletter кампании, защото Resend го третира като transactional sending.
+В Resend трябва да има:
 
-Новият production модел трябва да използва Resend Contacts, Segments и Broadcast API.
+- активен API key;
+- верифициран sending domain;
+- позволен sender адрес, например `info@reddevils.bg`;
+- по желание включен open/click tracking от настройките на домейна в Resend.
 
-Докато migration-ът не завърши:
+Tracking настройката не пречи на изпращането. Тя влияе само върху статистиките за отваряния и кликове.
 
-- `Изпрати тестов имейл` може да се използва;
-- групи, шаблони и preview могат да се използват;
-- реални broadcast кампании през стария batch sender не трябва да се пускат в production.
+## 2. Инсталация
 
-## 1. Инсталация
+Докато пакетът не е публикуван в npm, инсталацията става от GitHub.
 
-Докато плъгинът не е публикуван в npm, инсталацията става от GitHub:
+Препоръчителният production вариант е към конкретен tag:
 
 ```bash
-pnpm add git+ssh://git@github.com/Galov/payload-email-broadcast-plugin.git
+pnpm add github:Galov/payload-email-broadcast-plugin#v1.0.0
 ```
 
-За локален тестов проект може да се използва и file dependency:
+За локален тестов проект може да се използва file dependency:
 
 ```bash
 pnpm add ../payload-email-broadcast-plugin
 ```
 
-За production сайт е препоръчително dependency-то да сочи към конкретен tag, например:
+След инсталация задължително регенерирай Payload import map:
 
 ```bash
-pnpm add github:Galov/payload-email-broadcast-plugin#v0.1.4
+pnpm payload generate:importmap
 ```
 
-## 2. Environment настройки
+Без тази команда custom бутоните в Payload admin може да не се заредят.
 
-В сайта добави Resend API key в `.env`:
+## 3. Environment настройки
+
+В `.env` на сайта добави:
 
 ```env
 RESEND_API_KEY=re_...
+NEXT_PUBLIC_SITE_URL=https://www.example.com
+```
+
+`RESEND_API_KEY` не трябва да се пази в Payload admin или в базата.
+
+`NEXT_PUBLIC_SITE_URL` трябва да е публичният адрес на сайта без slash накрая. Plugin-ът го използва, за да превърне media URL-и като `/api/media/file/...` в абсолютни URL-и, които email клиентите могат да заредят.
+
+За RDBG стойността е:
+
+```env
 NEXT_PUBLIC_SITE_URL=https://www.reddevils.bg
 ```
 
-Не пази Resend API key в Payload admin или в базата.
-
-`NEXT_PUBLIC_SITE_URL` се използва, за да могат изображенията в имейлите да получат абсолютен URL. Без него email клиентите няма да могат да заредят относителни media URL-и като `/api/media/file/...`.
-
-## 3. Payload config
+## 4. Payload config
 
 В `payload.config.ts` добави plugin-а в `plugins`.
 
-Пример за RDBG, където получателите са в `members`:
+Минимален пример:
 
 ```ts
 import { emailBroadcastPlugin } from 'payload-email-broadcast-plugin'
-import { Members } from './collections/Members'
 
 export default buildConfig({
   // ...
   plugins: [
-    emailBroadcastPlugin({
-      usersCollection: Members.slug,
+emailBroadcastPlugin({
+      recipientsCollection: 'members',
       recipientFields: {
         email: 'email',
         firstName: 'name',
       },
-      groupFilterFields: ['membershipStatus', 'membershipYear', 'createdAt'],
       resendApiKey: process.env.RESEND_API_KEY || '',
-      siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reddevils.bg',
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
     }),
   ],
 })
 ```
 
-Ако сайтът има поле за subscription статус, добави го:
+За RDBG получателите са в `members`, не в `users`.
+
+`usersCollection` остава като backward-compatible alias, но за нови инсталации използвай `recipientsCollection`.
+
+## 5. Полета на получателя
+
+`recipientsCollection` е slug-ът на колекцията с хората, до които може да се изпраща.
+
+`recipientFields.email` е задължително поле. То трябва да сочи към имейл адреса.
+
+`recipientFields.firstName` попълва `{{ firstName }}` в тестовите имейли и `{{{contact.first_name|}}}` в Resend Broadcast.
+
+`recipientFields.lastName` се задава само ако сайтът има отделно поле за фамилия.
+
+Ако сайтът има boolean поле за абонамент, добави го:
 
 ```ts
 emailBroadcastPlugin({
-  usersCollection: Members.slug,
+  recipientsCollection: 'members',
   recipientFields: {
     email: 'email',
     firstName: 'name',
   },
   subscriptionField: 'newsletterSubscribed',
   resendApiKey: process.env.RESEND_API_KEY || '',
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reddevils.bg',
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
 })
 ```
 
-## 4. Как се избира правилната конфигурация за конкретен сайт
+Ако `subscriptionField` липсва, режимът `Абонирани` не трябва да се използва като бизнес гаранция.
 
-`usersCollection` е slug-ът на колекцията, към която ще се изпраща. В RDBG това е `members`, не `users`.
+## 6. Групи по критерии
 
-`recipientFields.email` е полето с имейл адреса. То е задължително.
+`groupFilterFields` определя по кои полета админът може да създава snapshot групи.
 
-`recipientFields.firstName` е полето, което ще попълва `{{ firstName }}`. В RDBG засега това е `name`.
-
-`recipientFields.lastName` се задава само ако сайтът има отделно поле за фамилия.
-
-`subscriptionField` се задава само ако сайтът има реално boolean поле за абонамент. Ако липсва, не го добавяй.
-
-`siteUrl` трябва да е публичният адрес на сайта без slash накрая. За RDBG това е `https://www.reddevils.bg`.
-
-`groupFilterFields` определя по кои полета админът може да създава имейл групи по критерии. Това не трябва да включва всяко поле от колекцията, а само безопасните и смислени за сегментиране полета.
-
-Минималният вариант е списък с field names:
+Пример:
 
 ```ts
-groupFilterFields: ['membershipStatus', 'membershipYear', 'createdAt']
+emailBroadcastPlugin({
+  recipientsCollection: 'members',
+  recipientFields: {
+    email: 'email',
+    firstName: 'name',
+  },
+  groupFilterFields: ['membershipStatus', 'membershipYear', 'createdAt'],
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
+})
 ```
 
-Plugin-ът ще се опита сам да вземе label, type и опциите за `select`/`radio` от Payload collection config.
+Plugin-ът се опитва сам да вземе label, type и опциите за `select`/`radio` от Payload collection config.
 
-Ако искаш да override-неш label или options, използвай object config:
+Ако трябва ръчно уточнение, използвай object config:
 
 ```ts
 groupFilterFields: [
@@ -131,9 +151,37 @@ groupFilterFields: [
 ]
 ```
 
-Първата версия поддържа top-level полета от тип `text`, `email`, `number`, `date`, `checkbox`, `select` и `radio`.
+Поддържат се top-level полета от тип `text`, `email`, `number`, `date`, `checkbox`, `select` и `radio`.
 
-## 5. Настройки в Payload admin след инсталация
+Групите по критерии са snapshot. Това означава, че plugin-ът записва конкретните получатели в момента на създаване на групата. Групата не се променя автоматично по-късно.
+
+## 7. Resend custom properties
+
+Ако сайтът иска да праща допълнителни данни към Resend Contacts, използвай `resendContactProperties`.
+
+```ts
+emailBroadcastPlugin({
+  recipientsCollection: 'members',
+  recipientFields: {
+    email: 'email',
+    firstName: 'name',
+  },
+  resendContactProperties: [
+    {
+      field: 'membershipStatus',
+      property: 'membership_status',
+    },
+  ],
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
+})
+```
+
+`field` е полето в Payload recipient collection.
+
+`property` е името на custom property в Resend.
+
+## 8. Настройки в Payload admin
 
 След стартиране на сайта отвори Payload admin и попълни `Кампании -> Имейл настройки`.
 
@@ -148,44 +196,16 @@ groupFilterFields: [
 
 ```txt
 Име на изпращача: Red Devils Bulgaria
-Имейл на изпращача: адресът, верифициран в Resend
+Имейл на изпращача: info@reddevils.bg
 Reply-To имейл: reddevilsbulgaria@gmail.com
 Имейл за тестове: личен контролиран адрес
 ```
 
-`Текст във футъра` е само plain text fallback. Красив footer с линкове се прави в `Имейл шаблони -> Визия -> Футър`.
+`Имейл на изпращача` трябва да е позволен от Resend за верифицирания домейн.
 
-## 6. Payload import map
+## 9. Първоначално съдържание
 
-Плъгинът има custom admin компоненти. След инсталация или update пусни:
-
-```bash
-pnpm payload generate:importmap
-```
-
-Без това бутоните в Payload admin може да не се заредят.
-
-## 7. Real broadcast sending
-
-Production broadcast sending е в migration.
-
-Старият модел с Payload Jobs runner и cron вече не е целевият модел. Той ще бъде заменен с Resend Contacts, Segments и Broadcast API.
-
-След migration-а реалният flow трябва да бъде:
-
-1. Админът създава кампания в Payload.
-2. Админът проверява recipient summary.
-3. Plugin-ът sync-ва получателите като Resend Contacts.
-4. Plugin-ът създава Resend Segment за кампанията.
-5. Plugin-ът създава Resend Broadcast draft към този segment.
-6. Админът потвърждава реално изпращане.
-7. Resend изпраща Broadcast-а.
-
-Докато тази migration не е завършена, не пускай production broadcast кампании през стария jobs/cron модел.
-
-## 8. Първоначална настройка на съдържанието
-
-След `Имейл настройки` създай поне един `Имейл шаблон`.
+Създай поне един `Имейл шаблон`.
 
 В шаблона попълни:
 
@@ -197,26 +217,23 @@ Production broadcast sending е в migration.
 - фон;
 - footer.
 
-След това създай `Имейл група`, ако ще изпращаш до подбран списък от членове.
+След това създай `Имейл група`, ако ще изпращаш до подбран списък.
 
-Групата може да бъде:
+Групата може да бъде ръчна или създадена по критерии.
 
-- ръчна, чрез избор на конкретни получатели;
-- snapshot група по критерии, ако `groupFilterFields` е настроено в plugin config.
+## 10. Ред за изпращане в админа
 
-Snapshot групата записва конкретните получатели в момента на създаването. Тя не се обновява автоматично, ако по-късно някой член промени статус или друго поле.
+В `Имейл кампании` админът работи в този ред:
 
-Накрая създай `Имейл кампания`, избери шаблон, избери режим на получателите и запази.
+1. Създава кампания и я записва.
+2. Натиска `1. Изпрати тестов имейл`.
+3. Проверява получения тестов имейл.
+4. Натиска `2. Подготви получателите`.
+5. Проверява броя получатели в потвърждението.
+6. Натиска `3. Подготви имейла`.
+7. Натиска `4. Изпрати реално`, само ако всичко е проверено.
 
-## 9. Проверка преди реално изпращане
-
-Първо винаги използвай `Изпрати тестов имейл`.
-
-Тестовият имейл отива само до `Имейл за тестове` от `Имейл настройки`.
-
-Реалният бутон показва pre-send summary и изисква потвърждение. Production поведението му ще бъде мигрирано към Resend Broadcast API.
-
-Преди реално изпращане провери броя крайни получатели и пропуснатите записи.
+Plugin-ът показва бутоните поетапно. Завършените стъпки остават видими като неактивни бутони.
 
 Реално изпращане става само след ръчно потвърждение с:
 
@@ -224,37 +241,71 @@ Snapshot групата записва конкретните получател
 ИЗПРАТИ
 ```
 
-### 9.1. Deprecated dry-run от стария модел
+## 11. Как работи реалното изпращане
 
-До `v0.1.8` plugin-ът поддържаше `dryRun` за стария queue flow:
+При `2. Подготви получателите` plugin-ът:
 
-```ts
-emailBroadcastPlugin({
-  usersCollection: Members.slug,
-  recipientFields: {
-    email: 'email',
-    firstName: 'name',
-  },
-  dryRun: true,
-  resendApiKey: process.env.RESEND_API_KEY || '',
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reddevils.bg',
-})
+- избира получателите според режима на кампанията;
+- премахва дублирани имейли;
+- пропуска записи без имейл;
+- създава или обновява Resend Contacts;
+- създава Resend Segment за тази кампания;
+- добавя получателите към този Segment.
+
+При `3. Подготви имейла` plugin-ът създава Resend Broadcast чернова към подготвения Segment.
+
+При `4. Изпрати реално` plugin-ът казва на Resend да изпрати Broadcast-а.
+
+Тестовият имейл е отделен. Той се праща само до `Имейл за тестове` и не използва получателите на кампанията.
+
+## 12. Hosting бележки
+
+### Локално
+
+В локална среда е нормално изображенията в Resend preview да сочат към `localhost`, ако `NEXT_PUBLIC_SITE_URL` е локален адрес.
+
+За реален production тест `NEXT_PUBLIC_SITE_URL` трябва да сочи към публичния сайт.
+
+### Vercel
+
+Във Vercel добави environment variables за production:
+
+```env
+RESEND_API_KEY=re_...
+NEXT_PUBLIC_SITE_URL=https://www.example.com
 ```
 
-При `dryRun: true` старият broadcast flow създава logs, queue-ва jobs и маркира получателите като `sent`, но не изпраща имейли през Resend.
+След промяна на dependency версията към нов tag, commit-ни и push-ни host проекта. Vercel ще направи нов build.
 
-Този модел е deprecated за production кампании. След migration към Resend Broadcast API тестовият режим трябва да симулира sync към Contacts/Segment/Broadcast, а не batch изпращане през queue.
+Ако plugin update добавя или променя custom admin компоненти, пусни `pnpm payload generate:importmap` преди commit-а.
 
-Тестовият бутон `Изпрати тестов имейл` остава реален и продължава да праща към `Имейл за тестове`.
+### VPS / Hetzner
 
-Не оставяй `dryRun: true` в production конфигурация, когато очакваш реално изпращане.
+На VPS добави същите environment variables в начина, по който процесът се стартира.
 
-## 10. Какво не трябва да се прави
+Пример с `.env`:
 
-Не използвай реална production база за първи тест без копие или контролирана група.
+```env
+RESEND_API_KEY=re_...
+NEXT_PUBLIC_SITE_URL=https://www.example.com
+```
 
-Не пускай реална кампания през стария jobs runner модел.
+След update на plugin-а изпълни:
 
-Не слагай Resend API key в Payload admin.
+```bash
+pnpm install
+pnpm payload generate:importmap
+pnpm build
+```
 
-Не пускай реална кампания без първо да си получил тестов имейл.
+После рестартирай Node процеса или process manager-а, например `pm2`, `systemd` или Docker service.
+
+## 13. Какво не трябва да се прави
+
+Не изпращай реална кампания без получен и проверен тестов имейл.
+
+Не изпращай към `Всички` като първи production тест. Първият реален тест трябва да бъде към малка контролирана група.
+
+Не пази Resend API key в Payload admin.
+
+Не използвай стар jobs/cron sender за marketing/newsletter кампании.

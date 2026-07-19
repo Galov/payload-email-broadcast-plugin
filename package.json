@@ -1,13 +1,14 @@
 {
   "name": "payload-email-broadcast-plugin",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "description": "Reusable Payload v3 plugin for broadcast email workflows.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "INSTALLATION.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -4,12 +4,12 @@ import {
   type RecipientPreviewSummary,
 } from "../utils/recipients.js";
 import {
+  asNonEmptyString,
   resolveCandidateDocs,
   type SendCommonConfig,
 } from "../utils/sendCommon.js";
 
 type CreateSendSummaryEndpointArgs = SendCommonConfig & {
-  dryRun?: boolean;
 };
 
 const getRecipientModeLabel = (value: unknown) => {
@@ -29,7 +29,6 @@ const getRecipientModeLabel = (value: unknown) => {
 };
 
 export const createSendSummaryEndpoint = ({
-  dryRun,
   recipientEmailField,
   recipientFirstNameField,
   recipientLastNameField,
@@ -89,7 +88,12 @@ export const createSendSummaryEndpoint = ({
 
       return Response.json({
         allowed: isAllowedMode,
-        dryRun: dryRun === true,
+        campaign: {
+          hasPreparedEmail: asNonEmptyString(broadcast.resendBroadcastId) !== null,
+          hasPreparedRecipients: asNonEmptyString(broadcast.resendSegmentId) !== null,
+          isSent: broadcast.status === "sent" || broadcast.resendBroadcastStatus === "sent",
+          status: typeof broadcast.status === "string" ? broadcast.status : null,
+        },
         mode: broadcast.recipientMode ?? "all",
         modeLabel: getRecipientModeLabel(broadcast.recipientMode),
         summary,

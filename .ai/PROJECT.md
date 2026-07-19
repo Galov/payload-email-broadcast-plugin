@@ -23,15 +23,15 @@ Plugin-ът трябва да предоставя:
 
 ```ts
 emailBroadcastPlugin({
-  usersCollection: "users",
+  recipientsCollection: "users",
   recipientFields: {
     email: "email",
     firstName: "firstName",
     lastName: "lastName",
   },
   subscriptionField: "newsletterSubscribed",
-  unsubscribeTokenField: "unsubscribeToken",
   resendApiKey: process.env.RESEND_API_KEY,
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
 })
 ```
 
@@ -41,11 +41,11 @@ emailBroadcastPlugin({
 
 Следните стойности остават в developer configuration:
 
-- `usersCollection`
+- `recipientsCollection` (`usersCollection` остава legacy alias)
 - `recipientFields`
 - `subscriptionField`
-- `unsubscribeTokenField`
 - `resendApiKey`
+- `siteUrl`
 
 ### Конфигурация в Payload Global
 

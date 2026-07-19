@@ -14,7 +14,6 @@ import {
 import type { ResendContactPropertyMapping } from "../utils/resendContacts.js";
 
 type CreateSyncAudienceEndpointArgs = SendCommonConfig & {
-  dryRun?: boolean;
   resendApiKey: string;
   resendContactProperties?: ResendContactPropertyMapping[];
 };
@@ -126,7 +125,6 @@ const upsertSyncLog = async ({
 };
 
 export const createSyncAudienceEndpoint = ({
-  dryRun,
   recipientEmailField,
   recipientFirstNameField,
   recipientLastNameField,
@@ -165,15 +163,12 @@ export const createSyncAudienceEndpoint = ({
 
       const body = (await req.json?.().catch(() => null)) as {
         confirmation?: unknown;
-        dryRun?: unknown;
       } | null;
-      const shouldDryRun = dryRun === true || body?.dryRun !== false;
 
-      if (!shouldDryRun && body?.confirmation !== "СИНХРОНИЗИРАЙ") {
+      if (body?.confirmation !== "СИНХРОНИЗИРАЙ") {
         return Response.json(
           {
-            error:
-              "Липсва потвърждение за реална синхронизация към Resend.",
+            error: "Липсва потвърждение за подготовка на получателите.",
           },
           { status: 400 },
         );
@@ -202,15 +197,12 @@ export const createSyncAudienceEndpoint = ({
       });
 
       const existingSegmentId = asNonEmptyString(broadcast.resendSegmentId);
-      const segmentId = shouldDryRun
-        ? (existingSegmentId ?? `dry-run-segment-${broadcastId}`)
-        : (
-            existingSegmentId ??
-            (await createResendSegment({
-              apiKey: resendApiKey,
-              name: buildSegmentName({ broadcast, broadcastId }),
-            })).segmentId
-          );
+      const segmentId =
+        existingSegmentId ??
+        (await createResendSegment({
+          apiKey: resendApiKey,
+          name: buildSegmentName({ broadcast, broadcastId }),
+        })).segmentId;
       const syncedAt = new Date().toISOString();
       let syncedCount = 0;
       let syncFailedCount = 0;
@@ -229,35 +221,33 @@ export const createSyncAudienceEndpoint = ({
 
       for (const contact of plan.contacts) {
         try {
-          let resendContactId = `dry-run-contact-${contact.email}`;
+          let resendContactId: string;
 
-          if (!shouldDryRun) {
-            try {
-              resendContactId = (await updateResendContact({
-                apiKey: resendApiKey,
-                email: contact.email,
-                firstName: contact.firstName,
-                lastName: contact.lastName,
-                properties: contact.properties,
-                unsubscribed: contact.unsubscribed,
-              })).contactId;
-            } catch {
-              resendContactId = (await createResendContact({
-                apiKey: resendApiKey,
-                email: contact.email,
-                firstName: contact.firstName,
-                lastName: contact.lastName,
-                properties: contact.properties,
-                unsubscribed: contact.unsubscribed,
-              })).contactId;
-            }
+          try {
+            resendContactId = (await updateResendContact({
+              apiKey: resendApiKey,
+              email: contact.email,
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              properties: contact.properties,
+              unsubscribed: contact.unsubscribed,
+            })).contactId;
+          } catch {
+            resendContactId = (await createResendContact({
+              apiKey: resendApiKey,
+              email: contact.email,
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              properties: contact.properties,
+              unsubscribed: contact.unsubscribed,
+            })).contactId;
+          }
 
-            await addResendContactToSegment({
+          await addResendContactToSegment({
               apiKey: resendApiKey,
               email: contact.email,
               segmentId,
-            });
-          }
+          });
 
           await upsertSyncLog({
             broadcastId,
@@ -303,7 +293,6 @@ export const createSyncAudienceEndpoint = ({
       });
 
       return Response.json({
-        dryRun: shouldDryRun,
         ok: syncFailedCount === 0,
         segmentId,
         summary: {

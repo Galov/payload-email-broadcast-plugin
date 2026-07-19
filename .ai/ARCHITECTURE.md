@@ -17,9 +17,10 @@ payload-email-broadcast-plugin/
       EmailSettings.ts
     endpoints/
       sendTest.ts
-      sendBroadcast.ts
       sendSummary.ts
-      syncResendContacts.ts
+      syncAudience.ts
+      createBroadcastDraft.ts
+      sendResendBroadcast.ts
     providers/
       resend.ts
     utils/
@@ -109,7 +110,7 @@ Snapshot групата не е live dynamic query. При създаванет�
 
 `Email Logs` вече не трябва да се мисли като per-recipient send log от наш batch sender.
 
-След migration-а логовете трябва да служат като audit/sync история:
+Логовете служат като audit/sync история:
 
 - `broadcast`
 - `recipientId`
@@ -157,7 +158,7 @@ Payload recipient mode-ът се материализира като Resend Segm
 Име на segment пример:
 
 ```txt
-RDBG Campaign: <campaign title> (<campaign id>)
+Payload Campaign: <campaign title> (<campaign id>)
 ```
 
 ### Broadcasts
@@ -206,7 +207,7 @@ Broadcast HTML трябва да използва Resend contact properties за
 
 Причина: той изпраща реалните кампании чрез transactional email API, което е грешен Resend продукт за newsletter/broadcast кампании.
 
-След migration-а:
+В текущия production модел:
 
 - cron/job runner за изпращане отпада;
 - batch sending към получатели отпада;
