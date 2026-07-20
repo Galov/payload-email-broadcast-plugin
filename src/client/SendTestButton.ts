@@ -15,6 +15,7 @@ type ApiResponse = {
   ok?: boolean;
   resendBroadcastId?: string;
   resendBroadcastStatus?: string;
+  segmentLabel?: string;
   segmentId?: string;
   sentAt?: string;
   summary?: {
@@ -292,7 +293,7 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
       }
 
       setMessage(
-        `Списъкът с получатели е подготвен. Готови получатели: ${json.summary?.synced ?? 0}.`,
+        `Получателите са подготвени за сегмент "${json.segmentLabel ?? "избрания сегмент"}". Обновени контакти: ${json.summary?.synced ?? 0}.`,
       );
       await loadSummary();
     } catch (error) {

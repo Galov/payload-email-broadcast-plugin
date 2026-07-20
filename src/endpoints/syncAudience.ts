@@ -2,7 +2,6 @@ import { canAccessAdmin, type Endpoint, type Where } from "payload";
 import {
   addResendContactToSegment,
   createResendContact,
-  createResendSegment,
   updateResendContact,
 } from "../providers/resend.js";
 import { buildResendContactSyncPlan } from "../utils/resendContacts.js";
@@ -12,22 +11,12 @@ import {
   type SendCommonConfig,
 } from "../utils/sendCommon.js";
 import type { ResendContactPropertyMapping } from "../utils/resendContacts.js";
+import type { EmailBroadcastResendSegmentConfig } from "../utils/recipientSegmentSync.js";
 
 type CreateSyncAudienceEndpointArgs = SendCommonConfig & {
   resendApiKey: string;
   resendContactProperties?: ResendContactPropertyMapping[];
-};
-
-const buildSegmentName = ({
-  broadcast,
-  broadcastId,
-}: {
-  broadcast: Record<string, unknown>;
-  broadcastId: string;
-}) => {
-  const title = asNonEmptyString(broadcast.title) ?? "Untitled campaign";
-
-  return `Payload Campaign: ${title} (${broadcastId})`;
+  resendSegments?: EmailBroadcastResendSegmentConfig[];
 };
 
 const getExistingLog = async ({
@@ -131,6 +120,7 @@ export const createSyncAudienceEndpoint = ({
   recipientsCollection,
   resendApiKey,
   resendContactProperties,
+  resendSegments = [],
   subscriptionField,
 }: CreateSyncAudienceEndpointArgs): Endpoint => {
   const config: SendCommonConfig = {
@@ -196,13 +186,22 @@ export const createSyncAudienceEndpoint = ({
         recipients: candidates,
       });
 
-      const existingSegmentId = asNonEmptyString(broadcast.resendSegmentId);
-      const segmentId =
-        existingSegmentId ??
-        (await createResendSegment({
-          apiKey: resendApiKey,
-          name: buildSegmentName({ broadcast, broadcastId }),
-        })).segmentId;
+      const selectedSegmentKey = asNonEmptyString(broadcast.resendSegmentKey);
+      const selectedSegment = resendSegments.find(
+        (segment) => segment.key === selectedSegmentKey,
+      );
+
+      if (!selectedSegment) {
+        return Response.json(
+          {
+            error:
+              "Избери Resend сегмент за тази кампания. Сегментите се задават от developer-а в plugin config.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const segmentId = selectedSegment.resendSegmentId;
       const syncedAt = new Date().toISOString();
       let syncedCount = 0;
       let syncFailedCount = 0;
@@ -294,6 +293,7 @@ export const createSyncAudienceEndpoint = ({
 
       return Response.json({
         ok: syncFailedCount === 0,
+        segmentLabel: selectedSegment.label,
         segmentId,
         summary: {
           skipped: plan.skipped.length,

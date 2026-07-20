@@ -7,6 +7,11 @@ import {
   resolveSnapshotFilterFields,
   type EmailBroadcastGroupFilterField,
 } from "./utils/groupFilters.js";
+import {
+  addRecipientSegmentSyncToCollection,
+  validateResendSegments,
+  type EmailBroadcastResendSegmentConfig,
+} from "./utils/recipientSegmentSync.js";
 import type { ResendContactPropertyMapping } from "./utils/resendContacts.js";
 import type { Config, Plugin } from "payload";
 
@@ -15,6 +20,7 @@ export {
   loadRecipientPreview,
 } from "./utils/recipients.js";
 export { buildResendContactSyncPlan } from "./utils/resendContacts.js";
+export { validateResendSegments } from "./utils/recipientSegmentSync.js";
 export {
   renderResendBroadcastContent,
   RESEND_UNSUBSCRIBE_URL_PLACEHOLDER,
@@ -30,8 +36,8 @@ export {
   addResendContactToSegment,
   createResendBroadcast,
   createResendContact,
-  createResendSegment,
   ResendProviderError,
+  removeResendContactFromSegment,
   sendResendBroadcast,
   sendWithResend,
   updateResendContact,
@@ -43,9 +49,9 @@ export type {
   CreateResendBroadcastResult,
   CreateResendContactArgs,
   CreateResendContactResult,
-  CreateResendSegmentArgs,
-  CreateResendSegmentResult,
   ResendContactProperties,
+  RemoveResendContactFromSegmentArgs,
+  RemoveResendContactFromSegmentResult,
   SendResendBroadcastArgs,
   SendResendBroadcastResult,
   SendWithResendArgs,
@@ -72,6 +78,7 @@ export type {
   RenderResendBroadcastContentArgs,
   RenderResendBroadcastContentResult,
 } from "./utils/resendBroadcast.js";
+export type { EmailBroadcastResendSegmentConfig } from "./utils/recipientSegmentSync.js";
 export type { RenderTemplateData } from "./utils/renderTemplate.js";
 
 export type EmailBroadcastRecipientFields = {
@@ -88,6 +95,8 @@ export type EmailBroadcastPluginOptions = {
   mediaCollection?: string;
   resendApiKey: string;
   resendContactProperties?: ResendContactPropertyMapping[];
+  resendSegments?: EmailBroadcastResendSegmentConfig[];
+  resendSegmentsFieldName?: string;
   siteUrl?: string;
   defaultFromEmail?: string;
   defaultFromName?: string;
@@ -113,6 +122,9 @@ export const emailBroadcastPlugin = (
     const recipientsCollection = config.collections?.find(
       (collection) => collection.slug === recipientCollectionSlug,
     );
+    const resendSegments = validateResendSegments(options.resendSegments);
+    const resendSegmentsFieldName =
+      options.resendSegmentsFieldName ?? "emailBroadcastSegments";
     const groupFilterFields = resolveSnapshotFilterFields({
       configuredFields: options.groupFilterFields,
       recipientsCollection,
@@ -121,7 +133,21 @@ export const emailBroadcastPlugin = (
     return {
       ...config,
       collections: [
-        ...(config.collections ?? []),
+        ...(config.collections ?? []).map((collection) =>
+          collection.slug === recipientCollectionSlug
+            ? addRecipientSegmentSyncToCollection({
+                collection,
+                fieldName: resendSegmentsFieldName,
+                recipientEmailField: options.recipientFields.email,
+                recipientFirstNameField: options.recipientFields.firstName,
+                recipientLastNameField: options.recipientFields.lastName,
+                resendApiKey: options.resendApiKey,
+                resendContactProperties: options.resendContactProperties,
+                segments: resendSegments,
+                subscriptionField: options.subscriptionField,
+              })
+            : collection,
+        ),
         createEmailBroadcastsCollection({
           defaultFromEmail: options.defaultFromEmail,
           defaultFromName: options.defaultFromName,
@@ -133,6 +159,7 @@ export const emailBroadcastPlugin = (
           recipientLastNameField: options.recipientFields.lastName,
           resendApiKey: options.resendApiKey,
           resendContactProperties: options.resendContactProperties,
+          resendSegments,
           siteUrl: options.siteUrl,
           subscriptionField: options.subscriptionField,
         }),

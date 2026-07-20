@@ -192,32 +192,6 @@ export const updateResendContact = async ({
   };
 };
 
-export type CreateResendSegmentArgs = {
-  apiKey: string;
-  name: string;
-};
-
-export type CreateResendSegmentResult = {
-  name: string;
-  segmentId: string;
-};
-
-export const createResendSegment = async ({
-  apiKey,
-  name,
-}: CreateResendSegmentArgs): Promise<CreateResendSegmentResult> => {
-  const resend = new Resend(apiKey);
-  const data = assertResendSuccess(
-    "segments.create",
-    await resend.segments.create({ name }),
-  );
-
-  return {
-    name: data.name,
-    segmentId: data.id,
-  };
-};
-
 export type AddResendContactToSegmentArgs = {
   apiKey: string;
   contactId?: string;
@@ -253,6 +227,57 @@ export const addResendContactToSegment = async ({
 
   return {
     segmentId: data.id,
+  };
+};
+
+export type RemoveResendContactFromSegmentArgs = {
+  apiKey: string;
+  contactId?: string;
+  email?: string;
+  segmentId: string;
+};
+
+export type RemoveResendContactFromSegmentResult = {
+  segmentId: string;
+};
+
+export const removeResendContactFromSegment = async ({
+  apiKey,
+  contactId,
+  email,
+  segmentId,
+}: RemoveResendContactFromSegmentArgs): Promise<RemoveResendContactFromSegmentResult> => {
+  const contactIdentifier = contactId ?? email;
+
+  if (!contactIdentifier) {
+    throw new ResendProviderError({
+      message: "Removing a Resend contact from a segment requires contactId or email.",
+      operation: "contacts.segments.remove",
+    });
+  }
+
+  const response = await fetch(
+    `https://api.resend.com/contacts/${encodeURIComponent(contactIdentifier)}/segments/${encodeURIComponent(segmentId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as ResendErrorLike | null;
+
+    throw new ResendProviderError({
+      message: body?.message ?? "Resend contacts.segments.remove failed.",
+      operation: "contacts.segments.remove",
+      statusCode: response.status,
+    });
+  }
+
+  return {
+    segmentId,
   };
 };
 

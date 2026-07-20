@@ -65,7 +65,6 @@ Codex трябва:
 
 - `createResendContact`;
 - `updateResendContact`;
-- `createResendSegment`;
 - `addResendContactToSegment`;
 - `createResendBroadcast`;
 - `sendResendBroadcast`;

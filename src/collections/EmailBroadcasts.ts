@@ -12,6 +12,7 @@ import { createSyncAudienceEndpoint } from "../endpoints/syncAudience.js";
 import { createEmailRichTextEditor } from "../utils/emailEditor.js";
 import { normalizeEmailBodyValue } from "../utils/emailBody.js";
 import type { ResendContactPropertyMapping } from "../utils/resendContacts.js";
+import type { EmailBroadcastResendSegmentConfig } from "../utils/recipientSegmentSync.js";
 import {
   buildRecipientPreview,
   loadRecipientPreview,
@@ -34,6 +35,7 @@ type CreateEmailBroadcastsCollectionArgs = {
   recipientLastNameField?: string;
   resendApiKey: string;
   resendContactProperties?: ResendContactPropertyMapping[];
+  resendSegments?: EmailBroadcastResendSegmentConfig[];
   siteUrl?: string;
   subscriptionField?: string;
 };
@@ -49,6 +51,7 @@ export const createEmailBroadcastsCollection = ({
   recipientLastNameField,
   resendApiKey,
   resendContactProperties,
+  resendSegments = [],
   siteUrl,
   subscriptionField,
 }: CreateEmailBroadcastsCollectionArgs): CollectionConfig => {
@@ -305,6 +308,7 @@ export const createEmailBroadcastsCollection = ({
           recipientsCollection,
           resendApiKey,
           resendContactProperties,
+          resendSegments,
           subscriptionField,
         }).handler,
       },
@@ -428,6 +432,21 @@ export const createEmailBroadcastsCollection = ({
           condition: (_, siblingData) => siblingData?.recipientMode === "custom",
           description:
             "Избери точните получатели, ако кампанията е в ръчен режим.",
+        },
+      },
+      {
+        name: "resendSegmentKey",
+        label: "Resend сегмент",
+        type: "select",
+        required: resendSegments.length > 0,
+        options: resendSegments.map((segment) => ({
+          label: segment.label,
+          value: segment.key,
+        })),
+        admin: {
+          condition: () => resendSegments.length > 0,
+          description:
+            "Избери постоянния Resend сегмент, към който ще бъде изпратена тази кампания.",
         },
       },
       {
