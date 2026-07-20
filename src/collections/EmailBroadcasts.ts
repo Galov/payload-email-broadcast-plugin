@@ -15,13 +15,11 @@ import type { ResendContactPropertyMapping } from "../utils/resendContacts.js";
 import type { EmailBroadcastResendSegmentConfig } from "../utils/recipientSegmentSync.js";
 import {
   buildRecipientPreview,
-  loadRecipientPreview,
-  type RecipientPreviewCandidate,
   type RecipientPreviewResult,
 } from "../utils/recipients.js";
 import {
-  getRelationshipId,
-  resolveRecipientIdsFromGroups,
+  resolveCandidateDocs,
+  type SendCommonConfig,
 } from "../utils/sendCommon.js";
 
 type CreateEmailBroadcastsCollectionArgs = {
@@ -33,6 +31,7 @@ type CreateEmailBroadcastsCollectionArgs = {
   recipientEmailField: string;
   recipientFirstNameField?: string;
   recipientLastNameField?: string;
+  recipientSegmentsFieldName?: string;
   resendApiKey: string;
   resendContactProperties?: ResendContactPropertyMapping[];
   resendSegments?: EmailBroadcastResendSegmentConfig[];
@@ -49,6 +48,7 @@ export const createEmailBroadcastsCollection = ({
   recipientEmailField,
   recipientFirstNameField,
   recipientLastNameField,
+  recipientSegmentsFieldName,
   resendApiKey,
   resendContactProperties,
   resendSegments = [],
@@ -110,10 +110,6 @@ export const createEmailBroadcastsCollection = ({
           : typedData.previewText,
       body:
         typedTemplate.body ?? typedData.body,
-      type:
-        typedTemplate.type === "marketing" || typedTemplate.type === "service"
-          ? typedTemplate.type
-          : typedData.type,
       loadTemplateContent: false,
     };
   };
@@ -155,88 +151,24 @@ export const createEmailBroadcastsCollection = ({
       ...currentDoc,
       ...typedData,
     };
-    const recipientMode =
-      effectiveData.recipientMode === "subscribed" ||
-      effectiveData.recipientMode === "groups" ||
-      effectiveData.recipientMode === "custom"
-        ? effectiveData.recipientMode
-        : "all";
-    const broadcastType =
-      effectiveData.type === "marketing" ? "marketing" : "service";
-
-    let previewResult: RecipientPreviewResult;
-
-    if (recipientMode === "custom" || recipientMode === "groups") {
-      const recipientIds =
-        recipientMode === "custom"
-          ? (Array.isArray(effectiveData.customRecipients)
-              ? effectiveData.customRecipients
-              : [])
-              .map(getRelationshipId)
-              .filter((value): value is number | string => value !== null)
-          : [];
-
-      if (recipientMode === "groups") {
-        const selectedGroups = Array.isArray(effectiveData.recipientGroups)
-          ? effectiveData.recipientGroups
-          : [];
-        recipientIds.push(
-          ...(await resolveRecipientIdsFromGroups({
-            payload: req.payload,
-            selectedGroups,
-          })),
-        );
-      }
-
-      if (recipientIds.length === 0) {
-        previewResult = buildRecipientPreview({
-          candidates: [],
-          type: broadcastType,
-          subscriptionField,
-        });
-      } else {
-        const result = await req.payload.find({
-          collection: recipientsCollection,
-          depth: 0,
-          limit: recipientIds.length,
-          pagination: false,
-          where: {
-            id: {
-              in: recipientIds,
-            },
-          },
-        });
-
-        const candidates: RecipientPreviewCandidate[] = result.docs.map((doc) => {
-          const typedDoc = doc as Record<string, unknown>;
-
-          return {
-            id:
-              typeof typedDoc.id === "number" || typeof typedDoc.id === "string"
-                ? typedDoc.id
-                : undefined,
-            email: typedDoc[recipientEmailField],
-            newsletterSubscribed: subscriptionField
-              ? typedDoc[subscriptionField]
-              : undefined,
-          };
-        });
-
-        previewResult = buildRecipientPreview({
-          candidates,
-          type: broadcastType,
-          subscriptionField,
-        });
-      }
-    } else {
-      previewResult = await loadRecipientPreview({
-        payload: req.payload,
-        collection: recipientsCollection,
-        emailField: recipientEmailField,
-        type: recipientMode === "subscribed" ? "marketing" : broadcastType,
-        subscriptionField,
-      });
-    }
+    const config: SendCommonConfig = {
+      recipientEmailField,
+      recipientFirstNameField,
+      recipientLastNameField,
+      recipientSegmentsFieldName,
+      recipientsCollection,
+      subscriptionField,
+    };
+    const candidates = await resolveCandidateDocs({
+      broadcast: effectiveData,
+      config,
+      payload: req.payload,
+    });
+    const previewResult: RecipientPreviewResult = buildRecipientPreview({
+      candidates,
+      subscriptionField,
+      type: "marketing",
+    });
 
     return {
       ...typedData,
@@ -294,7 +226,9 @@ export const createEmailBroadcastsCollection = ({
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
+          recipientSegmentsFieldName,
           recipientsCollection,
+          resendSegments,
           subscriptionField,
         }).handler,
       },
@@ -305,6 +239,7 @@ export const createEmailBroadcastsCollection = ({
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
+          recipientSegmentsFieldName,
           recipientsCollection,
           resendApiKey,
           resendContactProperties,
@@ -322,6 +257,7 @@ export const createEmailBroadcastsCollection = ({
           recipientEmailField,
           recipientFirstNameField,
           recipientLastNameField,
+          recipientSegmentsFieldName,
           recipientsCollection,
           resendApiKey,
           siteUrl,
@@ -350,7 +286,7 @@ export const createEmailBroadcastsCollection = ({
         admin: {
           condition: (_, siblingData) => Boolean(siblingData?.template),
           description:
-            "При записване ще копира темата, прегледния текст, съдържанието и типа от избрания шаблон.",
+            "При записване ще копира темата, прегледния текст и съдържанието от избрания шаблон.",
         },
       },
       { name: "subject", label: "Тема", type: "text", required: true },
@@ -381,58 +317,6 @@ export const createEmailBroadcastsCollection = ({
           { label: "Изпратена", value: "sent" },
           { label: "Неуспешна", value: "failed" },
         ],
-      },
-      {
-        name: "type",
-        label: "Тип",
-        type: "select",
-        required: true,
-        defaultValue: "service",
-        options: [
-          { label: "Служебен", value: "service" },
-          { label: "Маркетинг", value: "marketing" },
-        ],
-      },
-      {
-        name: "recipientMode",
-        label: "Режим на получателите",
-        type: "select",
-        required: true,
-        defaultValue: "all",
-        options: [
-          { label: "Всички", value: "all" },
-          { label: "Абонирани", value: "subscribed" },
-          { label: "Групи", value: "groups" },
-          { label: "Ръчно избрани", value: "custom" },
-        ],
-        admin: {
-          description:
-            "Избери дали да се изпрати до всички, само до абонираните, до групи или до ръчно избрани получатели.",
-        },
-      },
-      {
-        name: "recipientGroups",
-        label: "Групи получатели",
-        type: "relationship",
-        relationTo: "email-recipient-groups",
-        hasMany: true,
-        admin: {
-          condition: (_, siblingData) => siblingData?.recipientMode === "groups",
-          description:
-            "Избери една или повече групи. Дублираните имейли ще бъдат премахнати автоматично.",
-        },
-      },
-      {
-        name: "customRecipients",
-        label: "Ръчно избрани получатели",
-        type: "relationship",
-        relationTo: recipientsCollection,
-        hasMany: true,
-        admin: {
-          condition: (_, siblingData) => siblingData?.recipientMode === "custom",
-          description:
-            "Избери точните получатели, ако кампанията е в ръчен режим.",
-        },
       },
       {
         name: "resendSegmentKey",
@@ -506,29 +390,29 @@ export const createEmailBroadcastsCollection = ({
         admin: {
           readOnly: true,
           description:
-            "Колко получатели са пропуснати при подготовката или sync-а.",
+            "Колко получатели са пропуснати при локалната подготовка.",
         },
       },
       {
         name: "syncedCount",
-        label: "Синхронизирани в Resend",
+        label: "Подготвени получатели",
         type: "number",
         defaultValue: 0,
         admin: {
           readOnly: true,
           description:
-            "Колко получатели са синхронизирани като Resend Contacts.",
+            "Колко получатели са валидни според Payload данните.",
         },
       },
       {
         name: "syncFailedCount",
-        label: "Неуспешни sync записи",
+        label: "Неуспешни записи",
         type: "number",
         defaultValue: 0,
         admin: {
           readOnly: true,
           description:
-            "Колко получатели не са синхронизирани успешно към Resend.",
+            "Колко получатели не са подготвени успешно.",
         },
       },
       {

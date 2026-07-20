@@ -67,7 +67,7 @@ export const createBroadcastDraftEndpoint = ({
         return Response.json(
           {
             error:
-              "Първо синхронизирай получателите към Resend Segment.",
+              "Първо подготви кампанията с избрания Resend сегмент.",
           },
           { status: 400 },
         );

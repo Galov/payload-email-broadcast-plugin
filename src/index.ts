@@ -157,6 +157,7 @@ export const emailBroadcastPlugin = (
           recipientEmailField: options.recipientFields.email,
           recipientFirstNameField: options.recipientFields.firstName,
           recipientLastNameField: options.recipientFields.lastName,
+          recipientSegmentsFieldName: resendSegmentsFieldName,
           resendApiKey: options.resendApiKey,
           resendContactProperties: options.resendContactProperties,
           resendSegments,

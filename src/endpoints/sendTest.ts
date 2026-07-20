@@ -1,9 +1,5 @@
-import { canAccessAdmin, type Endpoint, type Payload } from "payload";
-import {
-  buildRecipientPreview,
-  type RecipientPreviewCandidate,
-  type RecipientPreviewType,
-} from "../utils/recipients.js";
+import { canAccessAdmin, type Endpoint } from "payload";
+import { buildRecipientPreview } from "../utils/recipients.js";
 import {
   renderEmailBodyHTML,
   renderEmailLayoutHTML,
@@ -11,9 +7,14 @@ import {
 import { renderTemplate } from "../utils/renderTemplate.js";
 import { sendWithResend } from "../providers/resend.js";
 import {
-  getRelationshipId,
+  asNonEmptyString,
+  buildFromAddress,
+  escapeHtml,
   resolveBroadcastTemplate,
-  resolveRecipientIdsFromGroups,
+  resolveCandidateDocs,
+  stripHtml,
+  type CandidateDoc,
+  type SendCommonConfig,
 } from "../utils/sendCommon.js";
 
 type CreateSendTestEndpointArgs = {
@@ -23,196 +24,30 @@ type CreateSendTestEndpointArgs = {
   recipientEmailField: string;
   recipientFirstNameField?: string;
   recipientLastNameField?: string;
+  recipientSegmentsFieldName?: string;
   recipientsCollection: string;
   resendApiKey: string;
   siteUrl?: string;
   subscriptionField?: string;
 };
 
-type CandidateDoc = RecipientPreviewCandidate & Record<string, unknown>;
-
-const asNonEmptyString = (value: unknown): string | null => {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const normalized = value.trim();
-
-  return normalized.length > 0 ? normalized : null;
-};
-
-const stripHtml = (value: string): string => {
-  return value
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<\/(p|div|br|li|h1|h2|h3|h4|h5|h6)>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\n\s*\n+/g, "\n\n")
-    .replace(/[ \t]+/g, " ")
-    .trim();
-};
-
-const escapeHtml = (value: string): string => {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-};
-
-const buildFromAddress = ({
-  defaultFromEmail,
-  defaultFromName,
-  settings,
-}: {
-  defaultFromEmail?: string;
-  defaultFromName?: string;
-  settings: Record<string, unknown>;
-}): string | null => {
-  const fromEmail =
-    asNonEmptyString(settings.defaultFromEmail) ?? defaultFromEmail ?? null;
-  const fromName =
-    asNonEmptyString(settings.defaultFromName) ?? defaultFromName ?? null;
-
-  if (!fromEmail) {
-    return null;
-  }
-
-  return fromName ? `${fromName} <${fromEmail}>` : fromEmail;
-};
-
-const resolveCandidateDocs = async ({
-  broadcast,
-  payload,
-  recipientEmailField,
-  recipientFirstNameField,
-  recipientLastNameField,
-  recipientsCollection,
-  subscriptionField,
-}: {
-  broadcast: Record<string, unknown>;
-  payload: Payload;
-  recipientEmailField: string;
-  recipientFirstNameField?: string;
-  recipientLastNameField?: string;
-  recipientsCollection: string;
-  subscriptionField?: string;
-}): Promise<CandidateDoc[]> => {
-  const customRecipients = Array.isArray(broadcast.customRecipients)
-    ? broadcast.customRecipients
-    : [];
-
-  if (broadcast.recipientMode === "custom" || broadcast.recipientMode === "groups") {
-    const recipientIds =
-      broadcast.recipientMode === "custom"
-        ? customRecipients
-            .map(getRelationshipId)
-            .filter((value): value is number | string => value !== null)
-        : await resolveRecipientIdsFromGroups({
-            payload,
-            selectedGroups: Array.isArray(broadcast.recipientGroups)
-              ? broadcast.recipientGroups
-              : [],
-          });
-
-    if (recipientIds.length === 0) {
-      return [];
-    }
-
-    const result = await payload.find({
-      collection: recipientsCollection,
-      depth: 0,
-      limit: recipientIds.length,
-      overrideAccess: true,
-      pagination: false,
-      where: {
-        id: {
-          in: recipientIds,
-        },
-      },
-    });
-
-    return result.docs.map((doc) => {
-      const typedDoc = doc as Record<string, unknown>;
-
-      return {
-        email: typedDoc[recipientEmailField],
-        id:
-          typeof typedDoc.id === "number" || typeof typedDoc.id === "string"
-            ? typedDoc.id
-            : undefined,
-        ...(recipientFirstNameField
-          ? { [recipientFirstNameField]: typedDoc[recipientFirstNameField] }
-          : {}),
-        ...(recipientLastNameField
-          ? { [recipientLastNameField]: typedDoc[recipientLastNameField] }
-          : {}),
-        ...(subscriptionField
-          ? { newsletterSubscribed: typedDoc[subscriptionField] }
-          : {}),
-      };
-    });
-  }
-
-  const result = await payload.find({
-    collection: recipientsCollection,
-    depth: 0,
-    limit: 100,
-    overrideAccess: true,
-    pagination: false,
-  });
-
-  return result.docs.map((doc) => {
-    const typedDoc = doc as Record<string, unknown>;
-
-    return {
-      email: typedDoc[recipientEmailField],
-      id:
-        typeof typedDoc.id === "number" || typeof typedDoc.id === "string"
-          ? typedDoc.id
-          : undefined,
-      ...(recipientFirstNameField
-        ? { [recipientFirstNameField]: typedDoc[recipientFirstNameField] }
-        : {}),
-      ...(recipientLastNameField
-        ? { [recipientLastNameField]: typedDoc[recipientLastNameField] }
-        : {}),
-      ...(subscriptionField
-        ? { newsletterSubscribed: typedDoc[subscriptionField] }
-        : {}),
-    };
-  });
-};
-
 const resolveRenderData = ({
-  broadcast,
   candidates,
-  recipientEmailField,
   recipientFirstNameField,
   recipientLastNameField,
   subscriptionField,
   testRecipientEmail,
 }: {
-  broadcast: Record<string, unknown>;
   candidates: CandidateDoc[];
-  recipientEmailField: string;
   recipientFirstNameField?: string;
   recipientLastNameField?: string;
   subscriptionField?: string;
   testRecipientEmail: string;
 }) => {
-  const previewType: RecipientPreviewType =
-    broadcast.recipientMode === "subscribed"
-      ? "marketing"
-      : broadcast.type === "marketing"
-        ? "marketing"
-        : "service";
-
   const preview = buildRecipientPreview({
     candidates,
     subscriptionField,
-    type: previewType,
+    type: "marketing",
   });
 
   const sampleRecipient = preview.acceptedRecipients[0];
@@ -245,11 +80,21 @@ export const createSendTestEndpoint = ({
   recipientEmailField,
   recipientFirstNameField,
   recipientLastNameField,
+  recipientSegmentsFieldName,
   recipientsCollection,
   resendApiKey,
   siteUrl,
   subscriptionField,
 }: CreateSendTestEndpointArgs): Endpoint => {
+  const config: SendCommonConfig = {
+    recipientEmailField,
+    recipientFirstNameField,
+    recipientLastNameField,
+    recipientSegmentsFieldName,
+    recipientsCollection,
+    subscriptionField,
+  };
+
   return {
     method: "post",
     path: "/:id/send-test",
@@ -309,17 +154,11 @@ export const createSendTestEndpoint = ({
 
       const candidates = await resolveCandidateDocs({
         broadcast,
+        config,
         payload: req.payload,
-        recipientEmailField,
-        recipientFirstNameField,
-        recipientLastNameField,
-        recipientsCollection,
-        subscriptionField,
       });
       const renderData = resolveRenderData({
-        broadcast,
         candidates,
-        recipientEmailField,
         recipientFirstNameField,
         recipientLastNameField,
         subscriptionField,

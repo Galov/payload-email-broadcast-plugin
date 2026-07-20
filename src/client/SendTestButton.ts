@@ -35,7 +35,7 @@ type SendSummaryResponse = {
     status?: string | null;
   };
   error?: string;
-  modeLabel?: string;
+  segmentLabel?: string | null;
   summary?: {
     duplicateEmails: number;
     finalRecipients: number;
@@ -138,7 +138,7 @@ const buildSummaryText = (summaryJson: SendSummaryResponse): string | null => {
   }
 
   return [
-    `Режим: ${summaryJson.modeLabel ?? "неизвестен"}`,
+    `Сегмент: ${summaryJson.segmentLabel ?? "не е избран"}`,
     `Крайни получатели: ${summary.finalRecipients}`,
     `Разгледани записи: ${summary.totalCandidateRecipients}`,
     `Без имейл: ${summary.recipientsWithoutEmail}`,
@@ -187,7 +187,7 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
 
     if (!json.allowed) {
       throw new Error(
-        "Тази кампания не може да бъде изпратена в текущия контролиран режим.",
+        "Избери сегмент за тази кампания и я запази.",
       );
     }
 
@@ -293,7 +293,7 @@ export const SendTestButton: React.FC<SendTestButtonProps> = (props) => {
       }
 
       setMessage(
-        `Получателите са подготвени за сегмент "${json.segmentLabel ?? "избрания сегмент"}". Обновени контакти: ${json.summary?.synced ?? 0}.`,
+        `Кампанията е подготвена за сегмент "${json.segmentLabel ?? "избрания сегмент"}". Получатели според Payload: ${json.summary?.synced ?? 0}.`,
       );
       await loadSummary();
     } catch (error) {

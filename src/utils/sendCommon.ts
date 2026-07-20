@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, Where } from "payload";
 import {
   buildRecipientPreview,
   type RecipientPreviewCandidate,
@@ -11,6 +11,7 @@ export type SendCommonConfig = {
   recipientEmailField: string;
   recipientFirstNameField?: string;
   recipientLastNameField?: string;
+  recipientSegmentsFieldName?: string;
   recipientsCollection: string;
   subscriptionField?: string;
 };
@@ -104,64 +105,6 @@ export const resolveBroadcastTemplate = async ({
   })) as Record<string, unknown>;
 };
 
-const getCustomRecipientIds = (broadcast: Record<string, unknown>) => {
-  const customRecipients = Array.isArray(broadcast.customRecipients)
-    ? broadcast.customRecipients
-    : [];
-
-  return customRecipients
-    .map(getRelationshipId)
-    .filter((value): value is number | string => value !== null);
-};
-
-export const resolveRecipientIdsFromGroups = async ({
-  payload,
-  selectedGroups,
-}: {
-  payload: Payload;
-  selectedGroups: unknown[];
-}) => {
-  const groupIds = selectedGroups
-    .map(getRelationshipId)
-    .filter((value): value is number | string => value !== null);
-
-  if (groupIds.length === 0) {
-    return [];
-  }
-
-  const groupResult = await payload.find({
-    collection: "email-recipient-groups",
-    depth: 1,
-    limit: groupIds.length,
-    overrideAccess: true,
-    pagination: false,
-    where: {
-      id: {
-        in: groupIds,
-      },
-    },
-  });
-
-  const recipientIds: Array<number | string> = [];
-
-  for (const group of groupResult.docs) {
-    const typedGroup = group as Record<string, unknown>;
-    const groupRecipients = Array.isArray(typedGroup.recipients)
-      ? typedGroup.recipients
-      : [];
-
-    for (const recipient of groupRecipients) {
-      const recipientId = getRelationshipId(recipient);
-
-      if (recipientId) {
-        recipientIds.push(recipientId);
-      }
-    }
-  }
-
-  return recipientIds;
-};
-
 const mapRecipientDocToCandidate = ({
   config,
   doc,
@@ -195,12 +138,14 @@ const mapRecipientDocToCandidate = ({
   };
 };
 
-const loadAllRecipientDocs = async ({
+const loadRecipientDocs = async ({
   config,
   payload,
+  where,
 }: {
   config: SendCommonConfig;
   payload: Payload;
+  where?: Where;
 }): Promise<CandidateDoc[]> => {
   const candidates: CandidateDoc[] = [];
   const limit = 200;
@@ -214,6 +159,7 @@ const loadAllRecipientDocs = async ({
       limit,
       overrideAccess: true,
       page,
+      where,
     });
 
     candidates.push(
@@ -232,40 +178,6 @@ const loadAllRecipientDocs = async ({
   return candidates;
 };
 
-const loadRecipientDocsByIds = async ({
-  config,
-  payload,
-  recipientIds,
-}: {
-  config: SendCommonConfig;
-  payload: Payload;
-  recipientIds: Array<number | string>;
-}): Promise<CandidateDoc[]> => {
-  if (recipientIds.length === 0) {
-    return [];
-  }
-
-  const result = await payload.find({
-    collection: config.recipientsCollection,
-    depth: 0,
-    limit: recipientIds.length,
-    overrideAccess: true,
-    pagination: false,
-    where: {
-      id: {
-        in: recipientIds,
-      },
-    },
-  });
-
-  return result.docs.map((doc) =>
-    mapRecipientDocToCandidate({
-      config,
-      doc: doc as Record<string, unknown>,
-    }),
-  );
-};
-
 export const resolveCandidateDocs = async ({
   broadcast,
   config,
@@ -275,35 +187,27 @@ export const resolveCandidateDocs = async ({
   config: SendCommonConfig;
   payload: Payload;
 }): Promise<CandidateDoc[]> => {
-  if (broadcast.recipientMode === "custom" || broadcast.recipientMode === "groups") {
-    const recipientIds =
-      broadcast.recipientMode === "custom"
-        ? getCustomRecipientIds(broadcast)
-        : await resolveRecipientIdsFromGroups({
-            payload,
-            selectedGroups: Array.isArray(broadcast.recipientGroups)
-              ? broadcast.recipientGroups
-              : [],
-          });
+  const selectedSegmentKey = asNonEmptyString(broadcast.resendSegmentKey);
 
-    return loadRecipientDocsByIds({
+  if (config.recipientSegmentsFieldName && selectedSegmentKey) {
+    return loadRecipientDocs({
       config,
       payload,
-      recipientIds,
+      where: {
+        [`${config.recipientSegmentsFieldName}.${selectedSegmentKey}`]: {
+          equals: true,
+        },
+      },
     });
   }
 
-  return loadAllRecipientDocs({ config, payload });
+  return loadRecipientDocs({ config, payload });
 };
 
 export const getBroadcastPreviewType = (
   broadcast: Record<string, unknown>,
 ): RecipientPreviewType => {
-  if (broadcast.recipientMode === "subscribed") {
-    return "marketing";
-  }
-
-  return broadcast.type === "marketing" ? "marketing" : "service";
+  return "marketing";
 };
 
 export const buildAcceptedRecipients = ({

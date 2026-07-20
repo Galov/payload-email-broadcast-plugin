@@ -106,17 +106,6 @@ export const createEmailTemplatesCollection = (
                   "Поддържа текст, линкове, списъци и изображения. Променливите {{ firstName }}, {{ lastName }}, {{ email }} и {{ unsubscribeUrl }} също работят.",
               },
             },
-            {
-              name: "type",
-              label: "Тип",
-              type: "select",
-              required: true,
-              defaultValue: "service",
-              options: [
-                { label: "Служебен", value: "service" },
-                { label: "Маркетинг", value: "marketing" },
-              ],
-            },
           ],
         },
         {

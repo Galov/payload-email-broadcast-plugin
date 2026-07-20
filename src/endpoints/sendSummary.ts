@@ -8,37 +8,26 @@ import {
   resolveCandidateDocs,
   type SendCommonConfig,
 } from "../utils/sendCommon.js";
+import type { EmailBroadcastResendSegmentConfig } from "../utils/recipientSegmentSync.js";
 
 type CreateSendSummaryEndpointArgs = SendCommonConfig & {
-};
-
-const getRecipientModeLabel = (value: unknown) => {
-  if (value === "custom") {
-    return "Ръчно избрани";
-  }
-
-  if (value === "groups") {
-    return "Групи";
-  }
-
-  if (value === "subscribed") {
-    return "Абонирани";
-  }
-
-  return "Всички";
+  resendSegments?: EmailBroadcastResendSegmentConfig[];
 };
 
 export const createSendSummaryEndpoint = ({
   recipientEmailField,
   recipientFirstNameField,
   recipientLastNameField,
+  recipientSegmentsFieldName,
   recipientsCollection,
+  resendSegments = [],
   subscriptionField,
 }: CreateSendSummaryEndpointArgs): Endpoint => {
   const config: SendCommonConfig = {
     recipientEmailField,
     recipientFirstNameField,
     recipientLastNameField,
+    recipientSegmentsFieldName,
     recipientsCollection,
     subscriptionField,
   };
@@ -70,10 +59,10 @@ export const createSendSummaryEndpoint = ({
         overrideAccess: true,
       })) as Record<string, unknown>;
 
-      const isAllowedMode =
-        broadcast.recipientMode === "custom" ||
-        broadcast.recipientMode === "groups" ||
-        broadcast.recipientMode === "all";
+      const selectedSegmentKey = asNonEmptyString(broadcast.resendSegmentKey);
+      const selectedSegment = resendSegments.find(
+        (segment) => segment.key === selectedSegmentKey,
+      );
 
       const candidates = await resolveCandidateDocs({
         broadcast,
@@ -83,19 +72,19 @@ export const createSendSummaryEndpoint = ({
       const summary: RecipientPreviewSummary = buildRecipientPreview({
         candidates,
         subscriptionField,
-        type: broadcast.type === "marketing" ? "marketing" : "service",
+        type: "marketing",
       });
 
       return Response.json({
-        allowed: isAllowedMode,
+        allowed: selectedSegment !== undefined,
         campaign: {
           hasPreparedEmail: asNonEmptyString(broadcast.resendBroadcastId) !== null,
           hasPreparedRecipients: asNonEmptyString(broadcast.resendSegmentId) !== null,
           isSent: broadcast.status === "sent" || broadcast.resendBroadcastStatus === "sent",
           status: typeof broadcast.status === "string" ? broadcast.status : null,
         },
-        mode: broadcast.recipientMode ?? "all",
-        modeLabel: getRecipientModeLabel(broadcast.recipientMode),
+        segmentKey: selectedSegmentKey,
+        segmentLabel: selectedSegment?.label ?? null,
         summary,
       });
     },

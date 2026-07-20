@@ -51,7 +51,7 @@ export const createSendResendBroadcastEndpoint = ({
 
       if (!segmentId) {
         return Response.json(
-          { error: "Първо синхронизирай получателите към Resend Segment." },
+          { error: "Първо подготви кампанията с избрания Resend сегмент." },
           { status: 400 },
         );
       }
